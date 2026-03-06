@@ -3,7 +3,7 @@
 // Ganti GAS_URL dengan URL Web App GAS kamu setelah deploy
 // ================================================================
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzP5mpyA6i_IHtHEpDlXkmez16kndMuOpxLf1rNqPneKxwjYDO3IVAZjAQbw5axh3A7/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxGd5iUQpADOOIivftXoxaO6XB7Lu7jQ3uMbSHHiGotxeUpLeC_ohlnNlalkvgF3usz/exec";
 // Contoh: "https://script.google.com/macros/s/AKfycb.../exec"
 
 /**
