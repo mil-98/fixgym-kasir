@@ -3,23 +3,34 @@
 // Ganti GAS_URL dengan URL Web App GAS kamu setelah deploy
 // ================================================================
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwpMfP6ijtlUrH-3Zc-t67DrkwB-qA3Goennf_jWkrx1Pk03jheGw66zyL055BeG5KB/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzP5mpyA6i_IHtHEpDlXkmez16kndMuOpxLf1rNqPneKxwjYDO3IVAZjAQbw5axh3A7/exec";
 // Contoh: "https://script.google.com/macros/s/AKfycb.../exec"
 
 /**
- * Kirim request ke GAS Web App
- * @param {string} action - nama fungsi/action
- * @param {object} params - parameter tambahan
- * @returns {Promise<any>} - hasil dari GAS
+ * Kirim request ke GAS Web App via GET dengan query params.
+ *
+ * Kenapa GET, bukan POST?
+ * GAS Web App melakukan HTTP redirect saat dipanggil dari luar.
+ * fetch() POST + redirect = browser blokir (CORS preflight gagal).
+ * GET + URLSearchParams = simple request, browser ikuti redirect tanpa preflight,
+ * dan GAS bisa balas dengan header CORS yang benar.
+ *
+ * Untuk payload besar (cart, dll) kita stringify ke JSON lalu encode sebagai query param.
  */
 async function callGAS(action, params = {}) {
-  const body = JSON.stringify({ action, ...params });
-  const response = await fetch(GAS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" }, // GAS butuh text/plain bukan application/json untuk avoid preflight
-    body,
+  // Encode semua params sebagai query string
+  const qs = new URLSearchParams({ action });
+  for (const [key, val] of Object.entries(params)) {
+    // Object/array di-stringify dulu
+    qs.set(key, typeof val === "object" ? JSON.stringify(val) : val);
+  }
+
+  const url = GAS_URL + "?" + qs.toString();
+  const response = await fetch(url, {
+    method: "GET",
     redirect: "follow",
   });
+
   if (!response.ok) throw new Error("HTTP error: " + response.status);
   const data = await response.json();
   if (data && data.error) throw new Error(data.error);
