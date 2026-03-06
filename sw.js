@@ -2,9 +2,9 @@
 // sw.js — Service Worker untuk Fix Gym Kasir PWA
 // ================================================================
 
-const CACHE_NAME = "fixgym-kasir-v1";
+const CACHE_NAME = "fixgym-kasir-v2";
 
-// File yang akan di-cache untuk offline
+// Hanya cache file lokal saja (hindari CORS error dari CDN)
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -13,11 +13,7 @@ const ASSETS_TO_CACHE = [
   "./api.js",
   "./manifest.json",
   "./icon-192.png",
-  "./icon-512.png",
-  "https://cdn.tailwindcss.com",
-  "https://cdn.jsdelivr.net/npm/chart.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
-  "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@700;800&display=swap"
+  "./icon-512.png"
 ];
 
 // Install — cache semua asset
@@ -52,6 +48,17 @@ self.addEventListener("activate", function (event) {
 self.addEventListener("fetch", function (event) {
   // Jangan intercept request ke Google Apps Script (GAS)
   if (event.request.url.includes("script.google.com")) {
+    return;
+  }
+
+  // Jangan intercept request ke CDN eksternal
+  if (
+    event.request.url.includes("cdn.tailwindcss.com") ||
+    event.request.url.includes("cdn.jsdelivr.net") ||
+    event.request.url.includes("cdnjs.cloudflare.com") ||
+    event.request.url.includes("fonts.googleapis.com") ||
+    event.request.url.includes("fonts.gstatic.com")
+  ) {
     return;
   }
 
