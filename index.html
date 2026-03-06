@@ -510,5 +510,14 @@
 <!-- Load API helper dulu, baru script utama -->
 <script src="api.js"></script>
 <script src="script.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function (reg) { console.log('[SW] Registered:', reg.scope); })
+        .catch(function (err) { console.log('[SW] Failed:', err); });
+    });
+  }
+</script>
 </body>
 </html>
