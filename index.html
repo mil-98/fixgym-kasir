@@ -1,32 +1,513 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix Gym Kasir</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Fix Gym Kasir">
   <meta name="theme-color" content="#4f46e5">
-  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://i.imgur.com/heizYyB.png">
-  <title>Fix Gym Kasir</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f1117; display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 16px; }
-    .logo { width: 72px; height: 72px; border-radius: 16px; }
-    .title { color: #fff; font-family: sans-serif; font-size: 20px; font-weight: 700; }
-    .sub { color: #8b91a0; font-family: sans-serif; font-size: 13px; }
-  </style>
-  <script>
-    // Ganti dengan URL Apps Script kamu
-    var APP_URL = 'https://script.google.com/macros/s/AKfycbzQL5AufhZdcwzA4UHPQeZbsI9vzvTK14W4KmeJjQSZLgIspN-r_n27bFcAkG5C-y5-IQ/exec';
-    window.location.replace(APP_URL);
-  </script>
 </head>
 <body>
-  <img class="logo" src="https://i.imgur.com/heizYyB.png">
-  <div class="title">Fix Gym Kasir</div>
-  <div class="sub">Memuat aplikasi...</div>
+
+<div id="toastContainer"></div>
+
+<div id="loadingOverlay" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+  <div class="spinner"></div>
+  <p>Memuat data...</p>
+</div>
+
+<div id="confirmModal" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-box">
+    <div class="modal-title">Konfirmasi Pembayaran</div>
+    <div class="modal-msg" id="confirmMsg"></div>
+    <div class="modal-divider"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="confirmNo">Batalkan</button>
+      <button class="btn-confirm" id="confirmYes">Bayar Sekarang</button>
+    </div>
+  </div>
+</div>
+
+<div id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+<!-- MOBILE CART DRAWER -->
+<div id="mobileCartBackdrop" onclick="closeMobileCart()"></div>
+<div id="mobileCartDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-head">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="drawer-title">Keranjang</div>
+      <div class="cart-shift-tag" id="mobileCartShiftTag" style="margin-top:0;">Pilih shift dulu</div>
+    </div>
+    <div class="drawer-close" onclick="closeMobileCart()"><i class="fas fa-times"></i></div>
+  </div>
+  <div id="mobileCartItems">
+    <div class="cart-empty">
+      <div class="cart-empty-icon"><i class="fas fa-shopping-basket"></i></div>
+      <p>Keranjang kosong</p>
+      <span>Klik produk untuk menambahkan</span>
+    </div>
+  </div>
+  <div id="mobileCartFoot">
+    <div class="cart-total-row">
+      <div class="cart-total-lbl">Total Bayar</div>
+      <div class="cart-total-val" id="mobileCartTotal">Rp 0</div>
+    </div>
+    <div class="pay-method-label">Metode Pembayaran</div>
+    <div class="pay-method-btns">
+      <button class="pay-method-btn" id="mPay-tunai" onclick="selectPayMethod('tunai')"><i class="fas fa-money-bill-wave"></i> Tunai</button>
+      <button class="pay-method-btn" id="mPay-qris"  onclick="selectPayMethod('qris')"><i class="fas fa-qrcode"></i> QRIS</button>
+      <button class="pay-method-btn" id="mPay-transfer" onclick="selectPayMethod('transfer')"><i class="fas fa-exchange-alt"></i> Transfer</button>
+    </div>
+    <button class="btn-checkout" onclick="processCheckout()">
+      <i class="fas fa-arrow-right"></i> Proses Pembayaran
+    </button>
+  </div>
+</div>
+
+<!-- FLOATING CART BUTTON -->
+<button id="floatingCartBtn" onclick="openMobileCart()">
+  <i class="fas fa-shopping-basket"></i>
+  <span id="cartBadge" style="display:none;">0</span>
+</button>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-wrap">
+    <div class="login-left">
+      <div>
+        <div class="login-left-brand">
+          <img src="https://i.imgur.com/heizYyB.png" alt="Fix Gym" style="width:38px;height:38px;object-fit:contain;border-radius:8px;flex-shrink:0;">
+          Fix Gym Kasir
+        </div>
+        <div class="login-left-tagline">Sistem kasir modern untuk Fix Gym — kelola transaksi lebih mudah dan rapi.</div>
+      </div>
+      <div class="login-left-features">
+        <div class="login-feature-item"><div class="login-feature-dot"></div>Manajemen produk &amp; stok otomatis</div>
+        <div class="login-feature-item"><div class="login-feature-dot"></div>Laporan harian terkirim via email</div>
+        <div class="login-feature-item"><div class="login-feature-dot"></div>Shift pagi &amp; sore terpisah rapi</div>
+        <div class="login-feature-item"><div class="login-feature-dot"></div>Export laporan ke PDF kapan saja</div>
+      </div>
+    </div>
+    <div class="login-right">
+      <h2>Selamat datang kembali</h2>
+      <p>Masuk ke akun kamu untuk melanjutkan</p>
+      <div class="field-group">
+        <label class="field-label">Alamat Email</label>
+        <input type="email" id="email" class="field-input" placeholder="Masukkan email" onkeydown="if(event.key==='Enter') handleLogin()">
+      </div>
+      <div class="field-group" style="margin-bottom:22px;">
+        <label class="field-label">Password</label>
+        <input type="password" id="password" class="field-input" placeholder="Masukkan password" onkeydown="if(event.key==='Enter') handleLogin()">
+      </div>
+      <button class="btn-login" onclick="handleLogin()">Masuk ke Dashboard &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appPage" class="hidden-section" style="display:none;">
+
+  <aside id="sidebar">
+    <div class="sidebar-brand">
+      <img src="https://i.imgur.com/heizYyB.png" alt="Fix Gym" style="width:28px;height:28px;object-fit:contain;border-radius:6px;flex-shrink:0;">
+      <div class="brand-name">Fix Gym Kasir</div>
+    </div>
+    <div class="shift-pill">
+      <div class="shift-pill-label">Shift Aktif</div>
+      <div class="shift-pill-val" id="currentShiftDisplay">—</div>
+    </div>
+    <nav>
+      <div class="nav-section-label">Menu Utama</div>
+      <button class="nav-item active" id="nav-dashboard" onclick="showSection('dashboard')"><span class="nav-icon"><i class="fas fa-chart-bar"></i></span> Dashboard</button>
+      <button class="nav-item" id="nav-pos" onclick="showSection('pos')"><span class="nav-icon"><i class="fas fa-cash-register"></i></span> Kasir (POS)</button>
+      <button class="nav-item" id="nav-reports" onclick="showSection('reports')"><span class="nav-icon"><i class="fas fa-receipt"></i></span> Laporan</button>
+      <div class="nav-section-label" id="label-sistem" style="margin-top:8px;">Sistem</div>
+      <button class="nav-item" id="nav-settings" onclick="showSection('settings')"><span class="nav-icon"><i class="fas fa-sliders-h"></i></span> Pengaturan</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-row">
+        <div class="user-ava" id="sidebarAva">A</div>
+        <div>
+          <div class="user-name" id="sidebarName">—</div>
+          <div class="user-role" id="sidebarRole">—</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
+    </div>
+  </aside>
+
+  <div id="mainContent">
+    <div id="mobileHeader">
+      <div class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+      <div style="display:flex;align-items:center;gap:7px;">
+        <img src="https://i.imgur.com/heizYyB.png" alt="Fix Gym" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">
+        <span style="font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:800;">Fix Gym Kasir</span>
+      </div>
+      <div class="user-ava" id="mobileAva" style="width:30px;height:30px;font-size:11px;">A</div>
+    </div>
+
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-right">
+        <div id="liveClock"></div>
+        <div class="user-ava" id="topbarAva" style="width:30px;height:30px;font-size:12px;">A</div>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- DASHBOARD -->
+      <div id="dashboard" class="section-content">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Dashboard</div>
+            <div class="section-sub" id="dashDate"></div>
+          </div>
+        </div>
+
+        <div id="lowStockBanner" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <i class="fas fa-exclamation-triangle" style="color:var(--amber);font-size:14px;"></i>
+            <span style="font-size:13px;font-weight:700;color:#92400e;">Stok Menipis!</span>
+            <span style="font-size:11px;color:#a16207;margin-left:2px;">Segera tambah stok produk berikut</span>
+          </div>
+          <div id="lowStockList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:14px;">
+          <div class="stat-card">
+            <div class="stat-label">Shift Pagi</div>
+            <div class="stat-value" id="dashPagiTotal">Rp 0</div>
+            <div class="stat-sub" id="dashPagiCount">0 Transaksi</div>
+            <div class="stat-chip chip-blue"><i class="fas fa-sun" style="font-size:9px;"></i> Pagi</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Shift Sore</div>
+            <div class="stat-value" id="dashSoreTotal">Rp 0</div>
+            <div class="stat-sub" id="dashSoreCount">0 Transaksi</div>
+            <div class="stat-chip chip-green"><i class="fas fa-moon" style="font-size:9px;"></i> Sore</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Keseluruhan</div>
+            <div class="stat-value" id="dashGrandTotal">Rp 0</div>
+            <div class="stat-sub" id="dashGrandCount">0 Transaksi</div>
+            <div class="stat-chip chip-gray"><i class="fas fa-wallet" style="font-size:9px;"></i> Grand Total</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px;">
+          <div class="stat-card">
+            <div class="stat-label">Minggu Ini</div>
+            <div class="stat-value" id="dashMingguTotal">Rp 0</div>
+            <div class="stat-sub" id="dashMingguCount">0 Transaksi</div>
+            <div class="stat-chip" style="background:#f5f3ff;color:#7c3aed;"><i class="fas fa-calendar-week" style="font-size:9px;"></i> Mingguan</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Bulan Ini</div>
+            <div class="stat-value" id="dashBulanTotal">Rp 0</div>
+            <div class="stat-sub" id="dashBulanCount">0 Transaksi</div>
+            <div class="stat-chip" style="background:#ecfeff;color:#0891b2;"><i class="fas fa-calendar-alt" style="font-size:9px;"></i> Bulanan</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:22px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:16px;display:flex;align-items:center;gap:7px;">
+            <i class="fas fa-chart-bar" style="color:var(--accent);"></i> Perbandingan Shift
+          </div>
+          <canvas id="salesChart" height="90"></canvas>
+        </div>
+      </div>
+
+      <!-- POS -->
+      <div id="pos" class="section-content hidden-section">
+        <div style="display:flex;gap:18px;height:calc(100vh - 130px);">
+          <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-shrink:0;">
+              <button id="btnShiftPagi" class="shift-btn pagi" onclick="setShift('Pagi')"><i class="fas fa-sun"></i> Shift Pagi</button>
+              <button id="btnShiftSore" class="shift-btn sore" onclick="setShift('Sore')"><i class="fas fa-moon"></i> Shift Sore</button>
+              <div style="flex:1;"></div>
+              <div style="font-size:12px;color:var(--text3);" id="productCount"></div>
+            </div>
+            <div id="productList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;overflow-y:auto;flex:1;padding-bottom:80px;"></div>
+          </div>
+          <!-- Desktop cart -->
+          <div id="cartPanel">
+            <div class="cart-head">
+              <div class="cart-head-left">
+                <div class="cart-title">Keranjang Belanja</div>
+                <div class="cart-shift-tag" id="cartShiftDisplay">Pilih shift dulu</div>
+              </div>
+              <div class="cart-close-btn" onclick="closeDesktopCart()" title="Tutup keranjang (Esc)"><i class="fas fa-times"></i></div>
+            </div>
+            <div id="cartItems">
+              <div class="cart-empty">
+                <div class="cart-empty-icon"><i class="fas fa-shopping-basket"></i></div>
+                <p>Keranjang kosong</p>
+                <span>Klik produk untuk menambahkan</span>
+              </div>
+            </div>
+            <div class="cart-foot">
+              <div class="cart-total-row">
+                <div class="cart-total-lbl">Total Bayar</div>
+                <div class="cart-total-val" id="cartTotal">Rp 0</div>
+              </div>
+              <div class="pay-method-label">Metode Pembayaran</div>
+              <div class="pay-method-btns">
+                <button class="pay-method-btn" id="dPay-tunai" onclick="selectPayMethod('tunai')"><i class="fas fa-money-bill-wave"></i> Tunai</button>
+                <button class="pay-method-btn" id="dPay-qris"  onclick="selectPayMethod('qris')"><i class="fas fa-qrcode"></i> QRIS</button>
+                <button class="pay-method-btn" id="dPay-transfer" onclick="selectPayMethod('transfer')"><i class="fas fa-exchange-alt"></i> Transfer</button>
+              </div>
+              <button class="btn-checkout" onclick="processCheckout()">
+                <i class="fas fa-arrow-right"></i> Proses Pembayaran
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAPORAN -->
+      <div id="reports" class="section-content hidden-section">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Laporan Transaksi</div>
+            <div class="section-sub">Riwayat semua transaksi penjualan</div>
+          </div>
+          <button class="btn-act red" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Export PDF</button>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-group"><span class="filter-label">Dari</span><input type="date" id="startDate" class="filter-input"></div>
+          <div class="filter-group"><span class="filter-label">Sampai</span><input type="date" id="endDate" class="filter-input"></div>
+          <div class="filter-group"><span class="filter-label">Staff</span><select id="staffFilter" class="filter-select"><option value="">Semua Staff</option></select></div>
+          <div class="filter-group"><span class="filter-label">Shift</span><select id="shiftFilter" class="filter-select"><option value="">Semua Shift</option><option value="Pagi">Pagi</option><option value="Sore">Sore</option></select></div>
+          <div class="filter-group"><span class="filter-label">Payment</span><select id="paymentFilter" class="filter-select"><option value="">Semua</option><option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Transfer">Transfer</option></select></div>
+          <button class="btn-act accent" onclick="filterReports()"><i class="fas fa-filter"></i> Filter</button>
+          <button class="btn-act" onclick="resetFilter()"><i class="fas fa-undo"></i> Reset</button>
+        </div>
+        <div class="card" style="overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr><th>Tanggal</th><th>ID Transaksi</th><th>Shift</th><th>Staff</th><th>Total</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+              <tbody id="reportTableBody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:36px;">Belum ada data</td></tr></tbody>
+            </table>
+          </div>
+          <div id="paginationBar" style="display:none;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:12px;color:var(--text3);" id="pageInfo"></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button class="btn-act" id="btnPrevPage" onclick="changePage(-1)" style="padding:6px 12px;font-size:12px;"><i class="fas fa-chevron-left"></i></button>
+              <div id="pageNumbers" style="display:flex;gap:4px;"></div>
+              <button class="btn-act" id="btnNextPage" onclick="changePage(1)" style="padding:6px 12px;font-size:12px;"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:12px;color:var(--text3);">Baris/hal:</span>
+              <select id="pageSizeSelect" class="filter-select" style="padding:4px 8px;font-size:12px;" onchange="changePageSize()">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="total-box">
+          <div class="total-lbl">Total Penjualan</div>
+          <div class="total-val">Rp <span id="reportTotal">0</span></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="settings" class="section-content hidden-section">
+        <div class="section-header">
+          <div><div class="section-title">Pengaturan</div><div class="section-sub">Kelola produk, akun staff, dan keamanan</div></div>
+        </div>
+        <div style="display:flex;gap:4px;background:var(--bg2);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;">
+          <button class="settings-tab active" id="tab-produk" onclick="switchSettingsTab('produk')"><i class="fas fa-box" style="font-size:12px;"></i> Produk</button>
+          <button class="settings-tab" id="tab-staff" onclick="switchSettingsTab('staff')"><i class="fas fa-users" style="font-size:12px;"></i> Staff</button>
+          <button class="settings-tab" id="tab-keamanan" onclick="switchSettingsTab('keamanan')"><i class="fas fa-key" style="font-size:12px;"></i> Keamanan</button>
+          <button class="settings-tab" id="tab-log" onclick="switchSettingsTab('log')"><i class="fas fa-history" style="font-size:12px;"></i> Log Aktivitas</button>
+        </div>
+
+        <!-- TAB: PRODUK -->
+        <div id="settingsTab-produk" class="settings-tab-content">
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="btn-act accent" onclick="openAddProductModal()"><i class="fas fa-plus"></i> Tambah Produk</button>
+            <button class="btn-act" style="color:var(--green);border-color:var(--green-b);background:var(--green-s);" onclick="openAddStockModal()"><i class="fas fa-layer-group"></i> Tambah Stok</button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Daftar Produk</div>
+              <div style="font-size:12px;color:var(--text3);" id="prodTableCount"></div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>Nama Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th style="text-align:center;">Aksi</th></tr></thead>
+                <tbody id="productTableBody"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:36px;">Memuat data...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: STAFF -->
+        <div id="settingsTab-staff" class="settings-tab-content" style="display:none;">
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="btn-act accent" onclick="openAddStaffModal()"><i class="fas fa-user-plus"></i> Tambah Staff</button>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Daftar Staff</div>
+              <div style="font-size:12px;color:var(--text3);" id="staffTableCount"></div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th style="text-align:center;">Aksi</th></tr></thead>
+                <tbody id="staffTableBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:36px;">Memuat data...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: KEAMANAN -->
+        <div id="settingsTab-keamanan" class="settings-tab-content" style="display:none;">
+          <div style="max-width:400px;">
+            <div class="card" style="padding:24px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+                <div style="width:34px;height:34px;border-radius:8px;background:var(--amber-s);border:1px solid #fde68a;display:flex;align-items:center;justify-content:center;color:var(--amber);font-size:14px;"><i class="fas fa-key"></i></div>
+                <div><div style="font-size:14px;font-weight:700;color:var(--text);">Ubah Password</div><div style="font-size:11.5px;color:var(--text3);">Perbarui password akun kamu</div></div>
+              </div>
+              <div class="divider"></div>
+              <div class="form-group"><label class="form-label">Password Baru</label><input type="password" id="newPass" class="form-input" placeholder="Minimal 6 karakter"></div>
+              <button class="btn-save" style="background:var(--amber);" onclick="handleChangePassword()">Perbarui Password</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: LOG -->
+        <div id="settingsTab-log" class="settings-tab-content" style="display:none;">
+          <div class="card" style="overflow:hidden;">
+            <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Riwayat Aktivitas</div>
+              <button class="btn-act" style="font-size:11px;padding:5px 10px;" onclick="loadActivityLog()"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>Waktu</th><th>Aktivitas</th><th>Dilakukan Oleh</th><th>Detail</th></tr></thead>
+                <tbody id="activityLogBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:36px;">Memuat data...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Tambah Produk -->
+        <div id="addProductModal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.35);backdrop-filter:blur(4px);z-index:9100;align-items:center;justify-content:center;">
+          <div class="modal-box" style="max-width:440px;">
+            <div class="modal-title">Tambah Produk</div>
+            <div class="divider" style="margin:12px 0 16px;"></div>
+            <div class="form-group"><label class="form-label">Nama Produk</label><input type="text" id="prodName" class="form-input" placeholder="Contoh: Kopi Susu Gula Aren"></div>
+            <div class="form-group"><label class="form-label">Harga (Rp)</label><input type="number" id="prodPrice" class="form-input" placeholder="25000"></div>
+            <div class="form-group"><label class="form-label">Kategori</label><select id="prodCat" class="form-input" style="appearance:none;" onchange="handleCategoryChange()"><option value="">— Pilih Kategori —</option><option value="Extend Member">Extend Member</option><option value="New Membership">New Membership</option><option value="Makanan / Minuman">Makanan / Minuman</option></select></div>
+            <div class="form-group"><label class="form-label">Stok <span style="font-weight:400;color:var(--text3);">(hanya Makanan / Minuman)</span></label><input type="number" id="prodStock" min="0" disabled class="form-input" placeholder="Pilih kategori dulu"></div>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-cancel" style="flex:1;" onclick="closeAddProductModal()">Batal</button>
+              <button class="btn-confirm" style="flex:1;" onclick="handleAddProduct()">Simpan Produk</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Tambah Stok -->
+        <div id="addStockModal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.35);backdrop-filter:blur(4px);z-index:9100;align-items:center;justify-content:center;">
+          <div class="modal-box" style="max-width:440px;">
+            <div class="modal-title">Tambah Stok</div>
+            <div class="divider" style="margin:12px 0 16px;"></div>
+            <div class="form-group"><label class="form-label">Produk</label>
+              <select id="stockProdSelect" class="form-input" style="appearance:none;" onchange="handleStockProductChange()"><option value="">— Pilih Produk —</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Stok Saat Ini</label>
+              <input type="number" id="stockCurrent" class="form-input" disabled placeholder="Pilih produk dulu" style="background:var(--bg2);font-weight:700;">
+            </div>
+            <div class="form-group"><label class="form-label">Jumlah Tambah</label>
+              <input type="number" id="stockAdd" class="form-input" placeholder="Jumlah yang ditambahkan" min="1">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-cancel" style="flex:1;" onclick="closeAddStockModal()">Batal</button>
+              <button class="btn-confirm" style="flex:1;background:var(--green);" onclick="handleAddStock()">Tambah Stok</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Tambah Staff -->
+        <div id="addStaffModal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.35);backdrop-filter:blur(4px);z-index:9100;align-items:center;justify-content:center;">
+          <div class="modal-box" style="max-width:440px;">
+            <div class="modal-title">Tambah Staff</div>
+            <div class="divider" style="margin:12px 0 16px;"></div>
+            <div class="form-group"><label class="form-label">Alamat Email</label><input type="email" id="staffEmail" class="form-input" placeholder="nama@email.com"></div>
+            <div class="form-group"><label class="form-label">Password</label><input type="password" id="staffPass" class="form-input" placeholder="••••••••"></div>
+            <div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" id="staffName" class="form-input" placeholder="Nama Staff"></div>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-cancel" style="flex:1;" onclick="closeAddStaffModal()">Batal</button>
+              <button class="btn-confirm" style="flex:1;background:var(--green);" onclick="handleAddStaff()">Buat Staff</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Edit Produk -->
+        <div id="editProductModal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.35);backdrop-filter:blur(4px);z-index:9100;align-items:center;justify-content:center;">
+          <div class="modal-box" style="max-width:440px;">
+            <div class="modal-title">Edit Produk</div>
+            <div class="divider" style="margin:12px 0 16px;"></div>
+            <input type="hidden" id="editProdId">
+            <div class="form-group"><label class="form-label">Nama Produk</label><input type="text" id="editProdName" class="form-input" placeholder="Nama produk"></div>
+            <div class="form-group"><label class="form-label">Harga (Rp)</label><input type="number" id="editProdPrice" class="form-input" placeholder="25000"></div>
+            <div class="form-group"><label class="form-label">Kategori</label>
+              <select id="editProdCat" class="form-input" style="appearance:none;" onchange="handleEditCategoryChange()">
+                <option value="Extend Member">Extend Member</option>
+                <option value="New Membership">New Membership</option>
+                <option value="Makanan / Minuman">Makanan / Minuman</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Stok</label>
+              <input type="number" id="editProdStock" min="0" class="form-input" placeholder="Stok produk">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-cancel" style="flex:1;" onclick="closeEditProductModal()">Batal</button>
+              <button class="btn-confirm" style="flex:1;" onclick="handleUpdateProduct()">Simpan Perubahan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Edit Staff -->
+        <div id="editStaffModal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.35);backdrop-filter:blur(4px);z-index:9100;align-items:center;justify-content:center;">
+          <div class="modal-box" style="max-width:440px;">
+            <div class="modal-title">Edit Staff</div>
+            <div class="divider" style="margin:12px 0 16px;"></div>
+            <input type="hidden" id="editStaffEmail">
+            <div class="form-group"><label class="form-label">Email</label><input type="text" id="editStaffEmailDisplay" class="form-input" disabled style="background:var(--bg2);color:var(--text3);"></div>
+            <div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" id="editStaffName" class="form-input" placeholder="Nama staff"></div>
+            <div class="form-group"><label class="form-label">Password Baru <span style="font-weight:400;color:var(--text3);">(kosongkan jika tidak ingin diubah)</span></label>
+              <input type="password" id="editStaffPass" class="form-input" placeholder="••••••••">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-cancel" style="flex:1;" onclick="closeEditStaffModal()">Batal</button>
+              <button class="btn-confirm" style="flex:1;" onclick="handleUpdateStaff()">Simpan Perubahan</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end settings -->
+
+    </div><!-- end page-body -->
+  </div><!-- end mainContent -->
+</div><!-- end appPage -->
+
+<!-- Load API helper dulu, baru script utama -->
+<script src="api.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
