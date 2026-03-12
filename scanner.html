@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix Gym — QR Scanner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0a0a0a;
+      --bg2:      #111111;
+      --border:   #1e1e1e;
+      --gold:     #f5a623;
+      --gold-dim: rgba(245,166,35,0.12);
+      --green:    #16a34a;
+      --red:      #dc2626;
+      --amber:    #d97706;
+      --text:     #f1f5f9;
+      --text2:    #94a3b8;
+      --text3:    #475569;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 16px;
+      gap: 0;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .logo { font-size: 15px; font-weight: 800; letter-spacing: 5px; color: var(--gold); }
+    .logo-sub { font-size: 9px; letter-spacing: 3px; color: var(--text3); margin-top: 2px; }
+
+    /* ── VIEWFINDER ── */
+    .viewfinder-wrap {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      flex-shrink: 0;
+    }
+
+    video, canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 16px;
+      object-fit: cover;
+    }
+    canvas { display: none; }
+
+    .corner {
+      position: absolute;
+      width: 28px; height: 28px;
+      z-index: 10;
+    }
+    .corner::before, .corner::after {
+      content: '';
+      position: absolute;
+      background: var(--gold);
+      border-radius: 2px;
+    }
+    .corner::before { width: 3px; height: 100%; }
+    .corner::after  { width: 100%; height: 3px; }
+    .corner.tl { top: 10px; left: 10px; }
+    .corner.tl::before { top: 0; left: 0; }
+    .corner.tl::after  { top: 0; left: 0; }
+    .corner.tr { top: 10px; right: 10px; transform: scaleX(-1); }
+    .corner.tr::before { top: 0; left: 0; }
+    .corner.tr::after  { top: 0; left: 0; }
+    .corner.bl { bottom: 10px; left: 10px; transform: scaleY(-1); }
+    .corner.bl::before { top: 0; left: 0; }
+    .corner.bl::after  { top: 0; left: 0; }
+    .corner.br { bottom: 10px; right: 10px; transform: scale(-1); }
+    .corner.br::before { top: 0; left: 0; }
+    .corner.br::after  { top: 0; left: 0; }
+
+    .scan-line {
+      position: absolute;
+      left: 14px; right: 14px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      border-radius: 2px;
+      z-index: 10;
+      animation: scan 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--gold);
+      display: none;
+    }
+    @keyframes scan {
+      0%   { top: 14px; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 14px); opacity: 0; }
+    }
+
+    .cam-placeholder {
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      z-index: 5;
+    }
+    .cam-placeholder svg { width: 40px; height: 40px; opacity: 0.25; }
+    .cam-placeholder span { font-size: 11px; color: var(--text3); letter-spacing: 1px; }
+
+    /* ── STATUS ── */
+    .status {
+      margin-top: 14px;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: var(--text3);
+      text-transform: uppercase;
+      text-align: center;
+      min-height: 16px;
+    }
+    .status.scanning { color: var(--gold); }
+    .status.success  { color: var(--green); }
+    .status.error    { color: var(--red); }
+
+    /* ── RESULT CARD ── */
+    .result-card {
+      display: none;
+      margin-top: 16px;
+      width: 260px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: var(--gold-dim);
+      border: 1.5px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: var(--gold);
+      flex-shrink: 0;
+    }
+    .result-name { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .result-id   { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+    .result-status {
+      padding: 6px 16px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .result-status.aktif   { background: rgba(22,163,74,0.08);  color: var(--green); }
+    .result-status.expired { background: rgba(220,38,38,0.08);  color: var(--red); }
+
+    .result-body { padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .result-row  { display: flex; justify-content: space-between; align-items: center; }
+    .result-label { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+    .result-value { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); font-weight: 500; }
+
+    /* ── BUTTONS ── */
+    .result-footer { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+    .btn-absen {
+      width: 100%; padding: 11px;
+      border: none; border-radius: 10px;
+      background: var(--gold); color: #000;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 800; letter-spacing: 1px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-absen:hover  { opacity: 0.88; }
+    .btn-absen:active { transform: scale(0.98); }
+    .btn-absen:disabled { background: #1e1e1e; color: var(--text3); cursor: not-allowed; }
+
+    .btn-scan-again {
+      width: 100%; padding: 9px;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: transparent; color: var(--text2);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-scan-again:hover { border-color: var(--gold); color: var(--gold); }
+
+    .already-absen {
+      display: none;
+      padding: 12px 16px;
+      background: rgba(22,163,74,0.08);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12px; font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.5px;
+    }
+
+    .btn-start {
+      margin-top: 16px;
+      padding: 12px 32px;
+      border: 1.5px solid var(--gold);
+      border-radius: 10px;
+      background: var(--gold-dim);
+      color: var(--gold);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-start:hover { background: rgba(245,166,35,0.2); }
+
+    .error-box {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      width: 260px;
+      background: rgba(220,38,38,0.08);
+      border: 1px solid rgba(220,38,38,0.2);
+      border-radius: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--red);
+      line-height: 1.5;
+    }
+
+    /* Processing spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo">FIX GYM</div>
+    <div class="logo-sub">STAFF SCANNER</div>
+  </div>
+
+  <div class="viewfinder-wrap" id="viewfinderWrap">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+    <div class="scan-line" id="scanLine"></div>
+
+    <div class="cam-placeholder" id="camPlaceholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3M15 3h3a3 3 0 013 3v3M15 21h3a3 3 0 003-3v-3"/>
+        <rect x="8" y="8" width="8" height="8" rx="1"/>
+      </svg>
+      <span>Tekan mulai scan</span>
+    </div>
+
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="status" id="status">Siap memulai</div>
+
+  <button class="btn-start" id="btnStart" onclick="startScan()">MULAI SCAN</button>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div class="result-avatar" id="resAvatar">?</div>
+      <div>
+        <div class="result-name" id="resName">—</div>
+        <div class="result-id"   id="resId">—</div>
+      </div>
+    </div>
+    <div class="result-status" id="resStatus">—</div>
+    <div class="result-body">
+      <div class="result-row">
+        <span class="result-label">Join Date</span>
+        <span class="result-value" id="resJoin">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Expired</span>
+        <span class="result-value" id="resExp">—</span>
+      </div>
+    </div>
+    <div class="already-absen" id="alreadyAbsen">✓ Sudah absen hari ini</div>
+    <div class="result-footer">
+      <button class="btn-absen" id="btnAbsen" onclick="doAbsen()">ABSENSI</button>
+      <button class="btn-scan-again" onclick="scanAgain()">Scan Lagi</button>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+</div>
+
+<script>
+  // ── GANTI DENGAN URL GAS WEB APP KAMU ──
+  var GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_URL_GAS_KAMU/exec';
+
+  var video     = document.getElementById('video');
+  var canvas    = document.getElementById('canvas');
+  var ctx       = canvas.getContext('2d');
+  var scanning  = false;
+  var stream    = null;
+  var animFrame = null;
+  var currentMember = null;
+
+  // ── START SCAN ──
+  function startScan() {
+    document.getElementById('btnStart').style.display  = 'none';
+    document.getElementById('errorBox').style.display  = 'none';
+    document.getElementById('resultCard').style.display = 'none';
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(function(s) {
+        stream = s;
+        video.srcObject = s;
+        video.play();
+        document.getElementById('camPlaceholder').style.display = 'none';
+        document.getElementById('scanLine').style.display = 'block';
+        setStatus('Scanning...', 'scanning');
+        scanning = true;
+        requestAnimationFrame(tick);
+      })
+      .catch(function() {
+        showError('Kamera tidak bisa diakses.<br>Pastikan izin kamera sudah diberikan.');
+        document.getElementById('btnStart').style.display = 'block';
+      });
+  }
+
+  // ── SCAN LOOP ──
+  function tick() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+      if (code) {
+        onQRFound(code.data);
+        return;
+      }
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
+
+  // ── QR DITEMUKAN ──
+  function onQRFound(raw) {
+    scanning = false;
+    stopCamera();
+
+    // Format: FIXGYM|ID|Nama|JoinDate|ExpDate|token
+    var parts = raw.split('|');
+    if (parts.length < 6 || parts[0] !== 'FIXGYM') {
+      showError('QR Code tidak valid.<br>Bukan kartu member Fix Gym.');
+      document.getElementById('btnStart').style.display = 'block';
+      setStatus('Siap memulai', '');
+      return;
+    }
+
+    currentMember = {
+      id:    parts[1],
+      name:  parts[2],
+      join:  parts[3],
+      exp:   parts[4],
+      token: parts[5]
+    };
+
+    // Cek expired
+    var expParts = currentMember.exp.split('/');
+    var expDate  = new Date(expParts[2], expParts[1] - 1, expParts[0]);
+    var today    = new Date(); today.setHours(0, 0, 0, 0);
+    var isAktif  = expDate >= today;
+
+    // Render card
+    document.getElementById('resAvatar').innerText = currentMember.name.charAt(0).toUpperCase();
+    document.getElementById('resName').innerText   = currentMember.name;
+    document.getElementById('resId').innerText     = currentMember.id;
+    document.getElementById('resJoin').innerText   = currentMember.join;
+    document.getElementById('resExp').innerText    = currentMember.exp;
+
+    var statusEl = document.getElementById('resStatus');
+    if (isAktif) {
+      statusEl.innerText = '● Membership Active';
+      statusEl.className = 'result-status aktif';
+    } else {
+      statusEl.innerText = '● Membership Expired';
+      statusEl.className = 'result-status expired';
+    }
+
+    var btnAbsen = document.getElementById('btnAbsen');
+    btnAbsen.disabled  = !isAktif;
+    btnAbsen.innerText = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
+    btnAbsen.style.background = '';
+    btnAbsen.style.color = '';
+
+    document.getElementById('alreadyAbsen').style.display = 'none';
+    document.getElementById('resultCard').style.display   = 'block';
+    document.getElementById('errorBox').style.display     = 'none';
+    setStatus('Member ditemukan', 'success');
+  }
+
+  // ── ABSENSI via fetch ke GAS ──
+  function doAbsen() {
+    if (!currentMember) return;
+
+    var btn = document.getElementById('btnAbsen');
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner"></span>Memproses...';
+
+    // Panggil GAS endpoint absensiMember dengan token member
+    // GAS harus support CORS — pakai mode no-cors atau redirect trick
+    var url = GAS_URL + '?action=absensi&token=' + encodeURIComponent(currentMember.token);
+
+    fetch(url, { method: 'GET', redirect: 'follow' })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          btn.style.background = '#16a34a';
+          btn.style.color      = '#fff';
+          btn.innerHTML        = '✓ Absensi Berhasil!';
+          btn.disabled         = true;
+          setStatus('Absensi berhasil!', 'success');
+        } else if (data.alreadyAbsen) {
+          btn.style.display = 'none';
+          document.getElementById('alreadyAbsen').style.display = 'block';
+          setStatus('Sudah absen hari ini', 'error');
+        } else {
+          btn.disabled  = false;
+          btn.innerHTML = 'ABSENSI';
+          setStatus(data.message || 'Gagal absensi', 'error');
+        }
+      })
+      .catch(function(err) {
+        btn.disabled  = false;
+        btn.innerHTML = 'ABSENSI';
+        setStatus('Gagal terhubung ke server', 'error');
+      });
+  }
+
+  // ── SCAN LAGI ──
+  function scanAgain() {
+    currentMember = null;
+    document.getElementById('resultCard').style.display     = 'none';
+    document.getElementById('errorBox').style.display       = 'none';
+    document.getElementById('alreadyAbsen').style.display   = 'none';
+    document.getElementById('camPlaceholder').style.display = 'flex';
+
+    var btn = document.getElementById('btnAbsen');
+    btn.disabled      = false;
+    btn.innerHTML     = 'ABSENSI';
+    btn.style.background = '';
+    btn.style.color      = '';
+
+    document.getElementById('btnStart').style.display = 'block';
+    setStatus('Siap memulai', '');
+  }
+
+  // ── HELPERS ──
+  function stopCamera() {
+    scanning = false;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+    document.getElementById('scanLine').style.display      = 'none';
+    document.getElementById('camPlaceholder').style.display = 'flex';
+  }
+
+  function setStatus(msg, type) {
+    var el = document.getElementById('status');
+    el.innerText = msg;
+    el.className = 'status ' + (type || '');
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('errorBox');
+    el.innerHTML = msg;
+    el.style.display = 'block';
+    setStatus('Gagal', 'error');
+  }
+</script>
+</body>
+</html>
