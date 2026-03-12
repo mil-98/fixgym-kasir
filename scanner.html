@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    h1 { color: #38bdf8; font-size: 1.4rem; }
+
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid #38bdf8;
+      display: none;
+    }
+    video { width: 100%; display: block; }
+    canvas { display: none; }
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+      animation: scanMove 2s linear infinite;
+    }
+    @keyframes scanMove { 0% { top: 0; } 100% { top: 100%; } }
+
+    #btn-mulai {
+      width: 100%;
+      max-width: 360px;
+      padding: 18px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #btn-mulai:active { background: #0369a1; }
+
+    #log { font-size: 0.78rem; color: #64748b; text-align: center; }
+
+    .card {
+      width: 100%;
+      max-width: 360px;
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 18px;
+      border: 1px solid #334155;
+    }
+    .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    #hasil { font-size: 0.95rem; word-break: break-all; min-height: 20px; color: #f1f5f9; }
+    #hasil.placeholder { color: #475569; font-style: italic; }
+
+    .status { margin-top: 10px; padding: 9px 14px; border-radius: 8px; font-size: 0.82rem; display: none; }
+    .status.sukses { display:block; background:#064e3b; color:#6ee7b7; }
+    .status.gagal  { display:block; background:#450a0a; color:#fca5a5; }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 14px; }
+    button.aksi {
+      flex: 1; padding: 11px; border: none; border-radius: 10px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    .aksi.biru { background: #0284c7; color: white; }
+    .aksi.biru:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .aksi.abu { background: #1e3a5f; color: #93c5fd; }
+  </style>
+</head>
+<body>
+
+<h1>📷 QR Scanner</h1>
+
+<button id="btn-mulai" onclick="mulaiKamera()">📷 Tap untuk Buka Kamera</button>
+
+<div class="video-wrap" id="video-wrap">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+  <div class="scan-line"></div>
+</div>
+
+<div id="log">Tap tombol di atas untuk mulai scan</div>
+
+<div class="card">
+  <div class="label">Hasil Scan</div>
+  <div id="hasil" class="placeholder">Belum ada hasil...</div>
+  <div id="status-box" class="status"></div>
+  <div class="btn-row">
+    <button class="aksi biru" id="btn-simpan" onclick="simpanKeSheet()" disabled>💾 Simpan ke Sheet</button>
+    <button class="aksi abu" onclick="resetScanner()">↺ Scan Lagi</button>
+  </div>
+</div>
+
+<script>
+  // ⚠️ Ganti dengan URL Web App GAS kamu
+  const GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_URL_GAS/exec';
+
+  const video  = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx    = canvas.getContext('2d');
+  const logEl  = document.getElementById('log');
+
+  let scanning = false;
+  let hasilTerakhir = '';
+
+  function mulaiKamera() {
+    document.getElementById('btn-mulai').style.display = 'none';
+    document.getElementById('video-wrap').style.display = 'block';
+    logEl.textContent = 'Meminta izin kamera...';
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+      scanning = true;
+      logEl.textContent = 'Kamera aktif — arahkan ke QR code...';
+      requestAnimationFrame(scanFrame);
+    })
+    .catch(err => {
+      logEl.textContent = '❌ ' + err.name + ': ' + err.message;
+      document.getElementById('btn-mulai').style.display = 'block';
+      document.getElementById('btn-mulai').textContent = '🔄 Coba Lagi';
+      document.getElementById('video-wrap').style.display = 'none';
+    });
+  }
+
+  function scanFrame() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const qr = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+      if (qr) {
+        scanning = false;
+        hasilTerakhir = qr.data;
+        const el = document.getElementById('hasil');
+        el.textContent = qr.data;
+        el.classList.remove('placeholder');
+        document.getElementById('btn-simpan').disabled = false;
+        logEl.textContent = '✅ QR berhasil dibaca!';
+        return;
+      }
+    }
+    requestAnimationFrame(scanFrame);
+  }
+
+  function simpanKeSheet() {
+    if (!hasilTerakhir) return;
+    const btnSimpan = document.getElementById('btn-simpan');
+    btnSimpan.disabled = true;
+    btnSimpan.textContent = '⏳ Menyimpan...';
+
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hasil: hasilTerakhir })
+    })
+    .then(() => {
+      tampilStatus('✅ Berhasil disimpan ke Sheet!', 'sukses');
+      btnSimpan.textContent = '💾 Simpan ke Sheet';
+    })
+    .catch(err => {
+      tampilStatus('❌ Gagal: ' + err.message, 'gagal');
+      btnSimpan.disabled = false;
+      btnSimpan.textContent = '💾 Simpan ke Sheet';
+    });
+  }
+
+  function resetScanner() {
+    scanning = true;
+    hasilTerakhir = '';
+    const el = document.getElementById('hasil');
+    el.textContent = 'Belum ada hasil...';
+    el.classList.add('placeholder');
+    document.getElementById('btn-simpan').disabled = true;
+    tampilStatus('', '');
+    logEl.textContent = 'Scanning...';
+    requestAnimationFrame(scanFrame);
+  }
+
+  function tampilStatus(pesan, tipe) {
+    const el = document.getElementById('status-box');
+    el.textContent = pesan;
+    el.className = 'status ' + tipe;
+    if (!tipe) el.style.display = 'none';
+  }
+</script>
+
+</body>
+</html>
