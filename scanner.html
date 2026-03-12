@@ -42,29 +42,34 @@
       gap: 0;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 18px;
-    }
+    .header { text-align: center; margin-bottom: 18px; }
     .logo { font-size: 15px; font-weight: 800; letter-spacing: 5px; color: var(--gold); }
     .logo-sub { font-size: 9px; letter-spacing: 3px; color: var(--text3); margin-top: 2px; }
 
-    /* ── VIEWFINDER ── */
     .viewfinder-wrap {
       position: relative;
-      width: 260px;
-      height: 260px;
+      width: 280px;
+      height: 280px;
       flex-shrink: 0;
     }
 
-    video, canvas {
+    #video {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
       border-radius: 16px;
       object-fit: cover;
+      display: block;
     }
-    canvas { display: none; }
+    #canvas { display: none; }
+    #debugCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 16px;
+      pointer-events: none;
+      z-index: 8;
+    }
 
     .corner {
       position: absolute;
@@ -126,9 +131,24 @@
     .cam-placeholder svg { width: 40px; height: 40px; opacity: 0.25; }
     .cam-placeholder span { font-size: 11px; color: var(--text3); letter-spacing: 1px; }
 
-    /* ── STATUS ── */
+    .focus-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: rgba(245,166,35,0.06);
+      z-index: 7;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
     .status {
-      margin-top: 14px;
+      margin-top: 12px;
       font-size: 11px;
       letter-spacing: 1.5px;
       color: var(--text3);
@@ -139,12 +159,12 @@
     .status.scanning { color: var(--gold); }
     .status.success  { color: var(--green); }
     .status.error    { color: var(--red); }
+    .status.warming  { color: var(--amber); }
 
-    /* ── RESULT CARD ── */
     .result-card {
       display: none;
-      margin-top: 16px;
-      width: 260px;
+      margin-top: 14px;
+      width: 280px;
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -189,7 +209,6 @@
     .result-label { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
     .result-value { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); font-weight: 500; }
 
-    /* ── BUTTONS ── */
     .result-footer { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
 
     .btn-absen {
@@ -224,11 +243,10 @@
       text-align: center;
       font-size: 12px; font-weight: 700;
       color: var(--green);
-      letter-spacing: 0.5px;
     }
 
     .btn-start {
-      margin-top: 16px;
+      margin-top: 14px;
       padding: 12px 32px;
       border: 1.5px solid var(--gold);
       border-radius: 10px;
@@ -243,9 +261,9 @@
 
     .error-box {
       display: none;
-      margin-top: 16px;
+      margin-top: 14px;
       padding: 14px 16px;
-      width: 260px;
+      width: 280px;
       background: rgba(220,38,38,0.08);
       border: 1px solid rgba(220,38,38,0.2);
       border-radius: 12px;
@@ -255,7 +273,6 @@
       line-height: 1.5;
     }
 
-    /* Processing spinner */
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
@@ -268,24 +285,17 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── MODE BADGE: tampil beda kalau standalone vs iframe ── */
-    .mode-badge {
-      position: fixed;
-      top: 10px; right: 10px;
-      font-size: 9px; letter-spacing: 1px;
-      padding: 3px 8px;
-      border-radius: 99px;
-      font-weight: 700;
-      text-transform: uppercase;
+    .debug-bar {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+      text-align: center;
+      min-height: 14px;
     }
-    .mode-badge.iframe     { background: rgba(245,166,35,0.15); color: var(--gold);  border: 1px solid rgba(245,166,35,0.3); }
-    .mode-badge.standalone { background: rgba(22,163,74,0.12);  color: var(--green); border: 1px solid rgba(22,163,74,0.3);  }
   </style>
 </head>
 <body>
-
-<div class="mode-badge" id="modeBadge">—</div>
-
 <div class="wrap">
 
   <div class="header">
@@ -293,13 +303,12 @@
     <div class="logo-sub">STAFF SCANNER</div>
   </div>
 
-  <div class="viewfinder-wrap" id="viewfinderWrap">
+  <div class="viewfinder-wrap">
     <div class="corner tl"></div>
     <div class="corner tr"></div>
     <div class="corner bl"></div>
     <div class="corner br"></div>
     <div class="scan-line" id="scanLine"></div>
-
     <div class="cam-placeholder" id="camPlaceholder">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3M15 3h3a3 3 0 013 3v3M15 21h3a3 3 0 003-3v-3"/>
@@ -307,12 +316,14 @@
       </svg>
       <span>Tekan mulai scan</span>
     </div>
-
+    <div class="focus-overlay" id="focusOverlay">Fokus kamera...</div>
     <video id="video" playsinline muted></video>
     <canvas id="canvas"></canvas>
+    <canvas id="debugCanvas"></canvas>
   </div>
 
   <div class="status" id="status">Siap memulai</div>
+  <div class="debug-bar" id="debugBar"></div>
 
   <button class="btn-start" id="btnStart" onclick="startScan()">MULAI SCAN</button>
 
@@ -347,121 +358,152 @@
 </div>
 
 <script>
-  // ================================================================
-  // KONFIGURASI
-  // ================================================================
-
-  // URL GAS Web App kamu — dipakai sebagai fallback kalau standalone
   var GAS_URL = 'https://script.google.com/macros/s/AKfycbzadQijf8NcbMJJZ9B3h7dYgKz1zd8rSffsuYDifWHgqK8xIN2CYxbGzaywLD58xhXjQA/exec';
 
-  // ================================================================
-  // STATE
-  // ================================================================
-  var video        = document.getElementById('video');
-  var canvas       = document.getElementById('canvas');
-  var ctx          = canvas.getContext('2d');
-  var scanning     = false;
-  var stream       = null;
-  var animFrame    = null;
+  var video         = document.getElementById('video');
+  var canvas        = document.getElementById('canvas');
+  var debugCanvas   = document.getElementById('debugCanvas');
+  var ctx           = canvas.getContext('2d');
+  var dCtx          = debugCanvas.getContext('2d');
+  var scanning      = false;
+  var stream        = null;
+  var animFrame     = null;
   var currentMember = null;
+  var frameCount    = 0;
+  var warmupDone    = false;
 
-  // Apakah scanner ini di-load di dalam iframe kasir app?
   var isInsideIframe = (window.self !== window.top);
+  var sessionToken   = null;
 
-  // Session token diterima dari parent (kasir app)
-  var sessionToken = null;
-
-  // Tandai mode
-  var modeBadge = document.getElementById('modeBadge');
   if (isInsideIframe) {
-    modeBadge.innerText = 'Iframe Mode';
-    modeBadge.className = 'mode-badge iframe';
-  } else {
-    modeBadge.innerText = 'Standalone Mode';
-    modeBadge.className = 'mode-badge standalone';
-  }
-
-  // ================================================================
-  // KOMUNIKASI DENGAN PARENT (kasir app)
-  // Saat load, minta token ke parent. Parent akan balas SET_TOKEN.
-  // ================================================================
-  if (isInsideIframe) {
-    // Minta token ke parent saat halaman siap
     window.parent.postMessage({ type: 'REQUEST_TOKEN' }, '*');
   }
 
-  // Terima pesan dari parent
   window.addEventListener('message', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
-
-    // Parent kirim session token
-    if (e.data.type === 'SET_TOKEN') {
-      sessionToken = e.data.token;
-    }
-
-    // Parent kirim hasil absensi
-    if (e.data.type === 'ABSEN_RESULT') {
-      handleAbsenResult(e.data);
-    }
+    if (e.data.type === 'SET_TOKEN')    sessionToken = e.data.token;
+    if (e.data.type === 'ABSEN_RESULT') handleAbsenResult(e.data);
   });
 
-  // ================================================================
-  // START SCAN
-  // ================================================================
+  // ── START SCAN ──
   function startScan() {
     document.getElementById('btnStart').style.display   = 'none';
     document.getElementById('errorBox').style.display   = 'none';
     document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('debugBar').innerText       = '';
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      .then(function(s) {
-        stream = s;
-        video.srcObject = s;
-        video.play();
-        document.getElementById('camPlaceholder').style.display = 'none';
-        document.getElementById('scanLine').style.display = 'block';
+    // Minta resolusi tinggi agar QR lebih mudah dibaca jsQR
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:      { ideal: 1280 },
+        height:     { ideal: 720 }
+      }
+    })
+    .then(function(s) {
+      stream = s;
+      video.srcObject = s;
+      video.play();
+
+      document.getElementById('camPlaceholder').style.display = 'none';
+      document.getElementById('scanLine').style.display       = 'block';
+
+      // Warmup — tunggu autofokus sebelum mulai decode
+      var focusEl = document.getElementById('focusOverlay');
+      focusEl.style.display = 'flex';
+      warmupDone = false;
+      frameCount = 0;
+      setStatus('Kamera fokus...', 'warming');
+
+      setTimeout(function() {
+        focusEl.style.display = 'none';
+        warmupDone = true;
         setStatus('Scanning...', 'scanning');
-        scanning = true;
-        requestAnimationFrame(tick);
-      })
-      .catch(function() {
-        showError('Kamera tidak bisa diakses.<br>Pastikan izin kamera sudah diberikan.');
-        document.getElementById('btnStart').style.display = 'block';
-      });
+      }, 1500);
+
+      scanning = true;
+      requestAnimationFrame(tick);
+    })
+    .catch(function(err) {
+      showError('Kamera tidak bisa diakses.<br>Pastikan izin kamera sudah diberikan.');
+      document.getElementById('btnStart').style.display = 'block';
+    });
   }
 
-  // ================================================================
-  // SCAN LOOP
-  // ================================================================
+  // ── SCAN LOOP ──
   function tick() {
     if (!scanning) return;
+
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
+      frameCount++;
+
+      // Sync canvas ke resolusi aktual video (bukan ukuran tampilan)
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width      = video.videoWidth;
+        canvas.height     = video.videoHeight;
+        debugCanvas.width = video.videoWidth;
+        debugCanvas.height= video.videoHeight;
+      }
+
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Tampilkan info resolusi di debug bar setiap 60 frame
+      if (frameCount % 60 === 0) {
+        document.getElementById('debugBar').innerText =
+          canvas.width + '×' + canvas.height + ' · frame ' + frameCount;
+      }
+
+      // Jangan decode selama warmup
+      if (!warmupDone) {
+        animFrame = requestAnimationFrame(tick);
+        return;
+      }
+
       var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // attemptBoth = coba QR normal + inverted (lebih reliabel)
       var code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
+        inversionAttempts: 'attemptBoth'
       });
+
       if (code) {
+        drawQROutline(code.location);
         onQRFound(code.data);
         return;
       }
+
+      dCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
     }
+
     animFrame = requestAnimationFrame(tick);
   }
 
-  // ================================================================
-  // QR DITEMUKAN
-  // ================================================================
+  // Highlight QR yang terdeteksi dengan kotak hijau
+  function drawQROutline(loc) {
+    dCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+    dCtx.beginPath();
+    dCtx.moveTo(loc.topLeftCorner.x,     loc.topLeftCorner.y);
+    dCtx.lineTo(loc.topRightCorner.x,    loc.topRightCorner.y);
+    dCtx.lineTo(loc.bottomRightCorner.x, loc.bottomRightCorner.y);
+    dCtx.lineTo(loc.bottomLeftCorner.x,  loc.bottomLeftCorner.y);
+    dCtx.closePath();
+    dCtx.lineWidth   = 6;
+    dCtx.strokeStyle = '#16a34a';
+    dCtx.stroke();
+  }
+
+  // ── QR DITEMUKAN ──
   function onQRFound(raw) {
     scanning = false;
     stopCamera();
 
-    // Format: FIXGYM|ID|Nama|JoinDate|ExpDate|token
     var parts = raw.split('|');
+
+    // Tampilkan raw QR di debug bar untuk diagnosa
+    document.getElementById('debugBar').innerText = 'Raw: ' + raw.substring(0, 50);
+
     if (parts.length < 6 || parts[0] !== 'FIXGYM') {
-      showError('QR Code tidak valid.<br>Bukan kartu member Fix Gym.');
+      showError('QR tidak valid.<br><small style="word-break:break-all;opacity:0.6;">' + escHtml(raw.substring(0, 100)) + '</small>');
       document.getElementById('btnStart').style.display = 'block';
       setStatus('Siap memulai', '');
       return;
@@ -475,13 +517,12 @@
       token: parts[5]
     };
 
-    // Cek expired
+    // Parse tanggal format d/m/yyyy
     var expParts = currentMember.exp.split('/');
     var expDate  = new Date(expParts[2], expParts[1] - 1, expParts[0]);
     var today    = new Date(); today.setHours(0, 0, 0, 0);
     var isAktif  = expDate >= today;
 
-    // Render card
     document.getElementById('resAvatar').innerText = currentMember.name.charAt(0).toUpperCase();
     document.getElementById('resName').innerText   = currentMember.name;
     document.getElementById('resId').innerText     = currentMember.id;
@@ -489,65 +530,45 @@
     document.getElementById('resExp').innerText    = currentMember.exp;
 
     var statusEl = document.getElementById('resStatus');
-    if (isAktif) {
-      statusEl.innerText = '● Membership Active';
-      statusEl.className = 'result-status aktif';
-    } else {
-      statusEl.innerText = '● Membership Expired';
-      statusEl.className = 'result-status expired';
-    }
+    statusEl.innerText = isAktif ? '● Membership Active' : '● Membership Expired';
+    statusEl.className = 'result-status ' + (isAktif ? 'aktif' : 'expired');
 
     var btnAbsen = document.getElementById('btnAbsen');
-    btnAbsen.disabled     = !isAktif;
-    btnAbsen.innerText    = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
+    btnAbsen.disabled         = !isAktif;
+    btnAbsen.innerText        = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
     btnAbsen.style.background = '';
     btnAbsen.style.color      = '';
+    btnAbsen.style.display    = 'block';
 
-    document.getElementById('alreadyAbsen').style.display  = 'none';
-    document.getElementById('resultCard').style.display    = 'block';
-    document.getElementById('errorBox').style.display      = 'none';
+    document.getElementById('alreadyAbsen').style.display = 'none';
+    document.getElementById('resultCard').style.display   = 'block';
+    document.getElementById('errorBox').style.display     = 'none';
     setStatus('Member ditemukan', 'success');
 
-    // ── Kirim info member ke parent (untuk ditampilkan di panel kanan kasir) ──
     if (isInsideIframe) {
       window.parent.postMessage({
         type:   'QR_FOUND',
-        member: {
-          id:   currentMember.id,
-          name: currentMember.name,
-          join: currentMember.join,
-          exp:  currentMember.exp
-        },
-        aktif: isAktif
+        member: { id: currentMember.id, name: currentMember.name, join: currentMember.join, exp: currentMember.exp },
+        aktif:  isAktif
       }, '*');
     }
   }
 
-  // ================================================================
-  // ABSENSI
-  // Kalau di dalam iframe → kirim ke parent via postMessage
-  // Kalau standalone      → langsung fetch ke GAS
-  // ================================================================
+  // ── ABSENSI ──
   function doAbsen() {
     if (!currentMember) return;
-
     var btn = document.getElementById('btnAbsen');
     btn.disabled  = true;
     btn.innerHTML = '<span class="spinner"></span>Memproses...';
 
     if (isInsideIframe) {
-      // ── Mode iframe: minta parent untuk proses absensi ──
-      // Parent (kasir app) sudah punya google.script.run dan sessionToken
       window.parent.postMessage({
         type:  'DO_ABSEN',
         token: currentMember.token,
         id:    currentMember.id,
         name:  currentMember.name
       }, '*');
-      // Hasil akan datang via message 'ABSEN_RESULT'
-
     } else {
-      // ── Mode standalone: fetch langsung ke GAS ──
       var url = GAS_URL + '?action=absensi&token=' + encodeURIComponent(currentMember.token);
       fetch(url, { method: 'GET', redirect: 'follow' })
         .then(function(res) { return res.json(); })
@@ -560,24 +581,18 @@
     }
   }
 
-  // ================================================================
-  // HANDLE HASIL ABSENSI (dari postMessage parent ATAU fetch langsung)
-  // ================================================================
   function handleAbsenResult(data) {
     var btn = document.getElementById('btnAbsen');
-
     if (data.success) {
       btn.style.background = '#16a34a';
       btn.style.color      = '#fff';
       btn.innerHTML        = '✓ Absensi Berhasil!';
       btn.disabled         = true;
       setStatus('Absensi berhasil!', 'success');
-
     } else if (data.alreadyAbsen) {
       btn.style.display = 'none';
       document.getElementById('alreadyAbsen').style.display = 'block';
       setStatus('Sudah absen hari ini', 'error');
-
     } else {
       btn.disabled  = false;
       btn.innerHTML = 'ABSENSI';
@@ -585,49 +600,46 @@
     }
   }
 
-  // ================================================================
-  // SCAN LAGI
-  // ================================================================
+  // ── SCAN LAGI ──
   function scanAgain() {
     currentMember = null;
     document.getElementById('resultCard').style.display     = 'none';
     document.getElementById('errorBox').style.display       = 'none';
     document.getElementById('alreadyAbsen').style.display   = 'none';
     document.getElementById('camPlaceholder').style.display = 'flex';
+    document.getElementById('debugBar').innerText           = '';
 
     var btn = document.getElementById('btnAbsen');
-    btn.disabled         = false;
-    btn.innerHTML        = 'ABSENSI';
-    btn.style.background = '';
-    btn.style.color      = '';
-    btn.style.display    = 'block';
+    btn.disabled = false; btn.innerHTML = 'ABSENSI';
+    btn.style.background = ''; btn.style.color = ''; btn.style.display = 'block';
 
     document.getElementById('btnStart').style.display = 'block';
     setStatus('Siap memulai', '');
   }
 
-  // ================================================================
-  // HELPERS
-  // ================================================================
   function stopCamera() {
     scanning = false;
     if (animFrame) cancelAnimationFrame(animFrame);
     if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
     document.getElementById('scanLine').style.display       = 'none';
     document.getElementById('camPlaceholder').style.display = 'flex';
+    document.getElementById('focusOverlay').style.display   = 'none';
   }
 
   function setStatus(msg, type) {
     var el = document.getElementById('status');
-    el.innerText  = msg;
-    el.className  = 'status ' + (type || '');
+    el.innerText = msg;
+    el.className = 'status ' + (type || '');
   }
 
   function showError(msg) {
-    var el = document.getElementById('errorBox');
-    el.innerHTML     = msg;
-    el.style.display = 'block';
+    document.getElementById('errorBox').innerHTML     = msg;
+    document.getElementById('errorBox').style.display = 'block';
     setStatus('Gagal', 'error');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 </script>
 </body>
