@@ -1,32 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Fix Gym Kasir">
-  <meta name="theme-color" content="#4f46e5">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="https://i.imgur.com/heizYyB.png">
-  <title>Fix Gym Kasir</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f1117; display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 16px; }
-    .logo { width: 72px; height: 72px; border-radius: 16px; }
-    .title { color: #fff; font-family: sans-serif; font-size: 20px; font-weight: 700; }
-    .sub { color: #8b91a0; font-family: sans-serif; font-size: 13px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+      padding: 24px;
+    }
+    h1 { color: #38bdf8; font-size: 1.4rem; }
+    p { color: #64748b; font-size: 0.9rem; text-align: center; }
+
+    .btn {
+      padding: 18px 32px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
   </style>
-  <script>
-    // Ganti dengan URL Apps Script kamu
-    var APP_URL = 'https://script.google.com/macros/s/AKfycbzQL5AufhZdcwzA4UHPQeZbsI9vzvTK14W4KmeJjQSZLgIspN-r_n27bFcAkG5C-y5-IQ/exec';
-    window.location.replace(APP_URL);
-  </script>
 </head>
 <body>
-  <img class="logo" src="https://i.imgur.com/heizYyB.png">
-  <div class="title">Fix Gym Kasir</div>
-  <div class="sub">Memuat aplikasi...</div>
+  <h1>QR Scanner</h1>
+  <p>Klik tombol untuk membuka scanner</p>
+
+  <a class="btn" href="https://USERNAME.github.io/REPO" target="_blank">
+    📷 Scan QR
+  </a>
 </body>
 </html>
