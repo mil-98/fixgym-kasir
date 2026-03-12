@@ -267,9 +267,25 @@
       vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── MODE BADGE: tampil beda kalau standalone vs iframe ── */
+    .mode-badge {
+      position: fixed;
+      top: 10px; right: 10px;
+      font-size: 9px; letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .mode-badge.iframe     { background: rgba(245,166,35,0.15); color: var(--gold);  border: 1px solid rgba(245,166,35,0.3); }
+    .mode-badge.standalone { background: rgba(22,163,74,0.12);  color: var(--green); border: 1px solid rgba(22,163,74,0.3);  }
   </style>
 </head>
 <body>
+
+<div class="mode-badge" id="modeBadge">—</div>
+
 <div class="wrap">
 
   <div class="header">
@@ -331,21 +347,70 @@
 </div>
 
 <script>
-  // ── GANTI DENGAN URL GAS WEB APP KAMU ──
+  // ================================================================
+  // KONFIGURASI
+  // ================================================================
+
+  // URL GAS Web App kamu — dipakai sebagai fallback kalau standalone
   var GAS_URL = 'https://script.google.com/macros/s/AKfycbzadQijf8NcbMJJZ9B3h7dYgKz1zd8rSffsuYDifWHgqK8xIN2CYxbGzaywLD58xhXjQA/exec';
 
-  var video     = document.getElementById('video');
-  var canvas    = document.getElementById('canvas');
-  var ctx       = canvas.getContext('2d');
-  var scanning  = false;
-  var stream    = null;
-  var animFrame = null;
+  // ================================================================
+  // STATE
+  // ================================================================
+  var video        = document.getElementById('video');
+  var canvas       = document.getElementById('canvas');
+  var ctx          = canvas.getContext('2d');
+  var scanning     = false;
+  var stream       = null;
+  var animFrame    = null;
   var currentMember = null;
 
-  // ── START SCAN ──
+  // Apakah scanner ini di-load di dalam iframe kasir app?
+  var isInsideIframe = (window.self !== window.top);
+
+  // Session token diterima dari parent (kasir app)
+  var sessionToken = null;
+
+  // Tandai mode
+  var modeBadge = document.getElementById('modeBadge');
+  if (isInsideIframe) {
+    modeBadge.innerText = 'Iframe Mode';
+    modeBadge.className = 'mode-badge iframe';
+  } else {
+    modeBadge.innerText = 'Standalone Mode';
+    modeBadge.className = 'mode-badge standalone';
+  }
+
+  // ================================================================
+  // KOMUNIKASI DENGAN PARENT (kasir app)
+  // Saat load, minta token ke parent. Parent akan balas SET_TOKEN.
+  // ================================================================
+  if (isInsideIframe) {
+    // Minta token ke parent saat halaman siap
+    window.parent.postMessage({ type: 'REQUEST_TOKEN' }, '*');
+  }
+
+  // Terima pesan dari parent
+  window.addEventListener('message', function(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+
+    // Parent kirim session token
+    if (e.data.type === 'SET_TOKEN') {
+      sessionToken = e.data.token;
+    }
+
+    // Parent kirim hasil absensi
+    if (e.data.type === 'ABSEN_RESULT') {
+      handleAbsenResult(e.data);
+    }
+  });
+
+  // ================================================================
+  // START SCAN
+  // ================================================================
   function startScan() {
-    document.getElementById('btnStart').style.display  = 'none';
-    document.getElementById('errorBox').style.display  = 'none';
+    document.getElementById('btnStart').style.display   = 'none';
+    document.getElementById('errorBox').style.display   = 'none';
     document.getElementById('resultCard').style.display = 'none';
 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
@@ -365,7 +430,9 @@
       });
   }
 
-  // ── SCAN LOOP ──
+  // ================================================================
+  // SCAN LOOP
+  // ================================================================
   function tick() {
     if (!scanning) return;
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -384,7 +451,9 @@
     animFrame = requestAnimationFrame(tick);
   }
 
-  // ── QR DITEMUKAN ──
+  // ================================================================
+  // QR DITEMUKAN
+  // ================================================================
   function onQRFound(raw) {
     scanning = false;
     stopCamera();
@@ -429,18 +498,36 @@
     }
 
     var btnAbsen = document.getElementById('btnAbsen');
-    btnAbsen.disabled  = !isAktif;
-    btnAbsen.innerText = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
+    btnAbsen.disabled     = !isAktif;
+    btnAbsen.innerText    = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
     btnAbsen.style.background = '';
-    btnAbsen.style.color = '';
+    btnAbsen.style.color      = '';
 
-    document.getElementById('alreadyAbsen').style.display = 'none';
-    document.getElementById('resultCard').style.display   = 'block';
-    document.getElementById('errorBox').style.display     = 'none';
+    document.getElementById('alreadyAbsen').style.display  = 'none';
+    document.getElementById('resultCard').style.display    = 'block';
+    document.getElementById('errorBox').style.display      = 'none';
     setStatus('Member ditemukan', 'success');
+
+    // ── Kirim info member ke parent (untuk ditampilkan di panel kanan kasir) ──
+    if (isInsideIframe) {
+      window.parent.postMessage({
+        type:   'QR_FOUND',
+        member: {
+          id:   currentMember.id,
+          name: currentMember.name,
+          join: currentMember.join,
+          exp:  currentMember.exp
+        },
+        aktif: isAktif
+      }, '*');
+    }
   }
 
-  // ── ABSENSI via fetch ke GAS ──
+  // ================================================================
+  // ABSENSI
+  // Kalau di dalam iframe → kirim ke parent via postMessage
+  // Kalau standalone      → langsung fetch ke GAS
+  // ================================================================
   function doAbsen() {
     if (!currentMember) return;
 
@@ -448,37 +535,59 @@
     btn.disabled  = true;
     btn.innerHTML = '<span class="spinner"></span>Memproses...';
 
-    // Panggil GAS endpoint absensiMember dengan token member
-    // GAS harus support CORS — pakai mode no-cors atau redirect trick
-    var url = GAS_URL + '?action=absensi&token=' + encodeURIComponent(currentMember.token);
+    if (isInsideIframe) {
+      // ── Mode iframe: minta parent untuk proses absensi ──
+      // Parent (kasir app) sudah punya google.script.run dan sessionToken
+      window.parent.postMessage({
+        type:  'DO_ABSEN',
+        token: currentMember.token,
+        id:    currentMember.id,
+        name:  currentMember.name
+      }, '*');
+      // Hasil akan datang via message 'ABSEN_RESULT'
 
-    fetch(url, { method: 'GET', redirect: 'follow' })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (data.success) {
-          btn.style.background = '#16a34a';
-          btn.style.color      = '#fff';
-          btn.innerHTML        = '✓ Absensi Berhasil!';
-          btn.disabled         = true;
-          setStatus('Absensi berhasil!', 'success');
-        } else if (data.alreadyAbsen) {
-          btn.style.display = 'none';
-          document.getElementById('alreadyAbsen').style.display = 'block';
-          setStatus('Sudah absen hari ini', 'error');
-        } else {
+    } else {
+      // ── Mode standalone: fetch langsung ke GAS ──
+      var url = GAS_URL + '?action=absensi&token=' + encodeURIComponent(currentMember.token);
+      fetch(url, { method: 'GET', redirect: 'follow' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) { handleAbsenResult(data); })
+        .catch(function() {
           btn.disabled  = false;
           btn.innerHTML = 'ABSENSI';
-          setStatus(data.message || 'Gagal absensi', 'error');
-        }
-      })
-      .catch(function(err) {
-        btn.disabled  = false;
-        btn.innerHTML = 'ABSENSI';
-        setStatus('Gagal terhubung ke server', 'error');
-      });
+          setStatus('Gagal terhubung ke server', 'error');
+        });
+    }
   }
 
-  // ── SCAN LAGI ──
+  // ================================================================
+  // HANDLE HASIL ABSENSI (dari postMessage parent ATAU fetch langsung)
+  // ================================================================
+  function handleAbsenResult(data) {
+    var btn = document.getElementById('btnAbsen');
+
+    if (data.success) {
+      btn.style.background = '#16a34a';
+      btn.style.color      = '#fff';
+      btn.innerHTML        = '✓ Absensi Berhasil!';
+      btn.disabled         = true;
+      setStatus('Absensi berhasil!', 'success');
+
+    } else if (data.alreadyAbsen) {
+      btn.style.display = 'none';
+      document.getElementById('alreadyAbsen').style.display = 'block';
+      setStatus('Sudah absen hari ini', 'error');
+
+    } else {
+      btn.disabled  = false;
+      btn.innerHTML = 'ABSENSI';
+      setStatus(data.message || 'Gagal absensi', 'error');
+    }
+  }
+
+  // ================================================================
+  // SCAN LAGI
+  // ================================================================
   function scanAgain() {
     currentMember = null;
     document.getElementById('resultCard').style.display     = 'none';
@@ -487,33 +596,36 @@
     document.getElementById('camPlaceholder').style.display = 'flex';
 
     var btn = document.getElementById('btnAbsen');
-    btn.disabled      = false;
-    btn.innerHTML     = 'ABSENSI';
+    btn.disabled         = false;
+    btn.innerHTML        = 'ABSENSI';
     btn.style.background = '';
     btn.style.color      = '';
+    btn.style.display    = 'block';
 
     document.getElementById('btnStart').style.display = 'block';
     setStatus('Siap memulai', '');
   }
 
-  // ── HELPERS ──
+  // ================================================================
+  // HELPERS
+  // ================================================================
   function stopCamera() {
     scanning = false;
     if (animFrame) cancelAnimationFrame(animFrame);
     if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
-    document.getElementById('scanLine').style.display      = 'none';
+    document.getElementById('scanLine').style.display       = 'none';
     document.getElementById('camPlaceholder').style.display = 'flex';
   }
 
   function setStatus(msg, type) {
     var el = document.getElementById('status');
-    el.innerText = msg;
-    el.className = 'status ' + (type || '');
+    el.innerText  = msg;
+    el.className  = 'status ' + (type || '');
   }
 
   function showError(msg) {
     var el = document.getElementById('errorBox');
-    el.innerHTML = msg;
+    el.innerHTML     = msg;
     el.style.display = 'block';
     setStatus('Gagal', 'error');
   }
