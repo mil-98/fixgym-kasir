@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fix Gym — Scanner Absensi</title>
-  <script src="https://unpkg.com/@zxing/browser@0.1.1/umd/index.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -268,39 +268,37 @@
   // ================================================================
   // SCANNER
   // ================================================================
-  function startScanner() {
-    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-    codeReader.decodeFromVideoDevice(undefined, 'video', function(result, err) {
-      if (result) onScanSuccess(result.getText());
-    }).catch(function(err) {
-      document.getElementById('camError').style.display    = 'flex';
-    });
-  }
+  var video      = document.getElementById('video');
+var canvasElem = document.createElement('canvas');
+var ctx        = canvasElem.getContext('2d');
+var stream     = null;
 
-  function onScanSuccess(qrText) {
-    if (isProcessing || qrText === lastScanned) return;
-    isProcessing  = true;
-    lastScanned   = qrText;
-    showLoading(true);
-    hideResult();
-    fetch(GAS_URL + '?action=scanAbsen&qr=' + encodeURIComponent(qrText) + '&key=' + SCANNER_KEY)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        showLoading(false);
-        showResult(data);
-        if (data.success) loadAbsensi();
-        setTimeout(function() {
-          hideResult();
-          isProcessing = false;
-          lastScanned  = '';
-        }, 4000);
-      })
-      .catch(function() {
-        showLoading(false);
-        showResult({ success: false, message: 'Gagal terhubung ke server. Cek koneksi internet.' });
-        setTimeout(function() { hideResult(); isProcessing = false; lastScanned = ''; }, 4000);
-      });
+function startScanner() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(function(s) {
+      stream        = s;
+      video.srcObject = s;
+      video.setAttribute('playsinline', true);
+      video.play();
+      requestAnimationFrame(tick);
+    })
+    .catch(function() {
+      document.getElementById('camError').style.display = 'flex';
+    });
+}
+
+function tick() {
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvasElem.height = video.videoHeight;
+    canvasElem.width  = video.videoWidth;
+    ctx.drawImage(video, 0, 0, canvasElem.width, canvasElem.height);
+    var imageData = ctx.getImageData(0, 0, canvasElem.width, canvasElem.height);
+    var code      = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) onScanSuccess(code.data);
   }
+  if (!isProcessing) requestAnimationFrame(tick);
+  else setTimeout(function() { requestAnimationFrame(tick); }, 4500);
+}
 
   // ================================================================
   // UI
