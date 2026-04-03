@@ -7,107 +7,40 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0a0a; color: #fff; min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* HEADER */
-    header {
-      padding: 14px 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: space-between;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    header { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; }
     .brand { font-size: 20px; font-weight: 900; letter-spacing: 4px; color: #f5a623; }
     .brand-sub { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 3px; margin-top: 2px; }
     .clock { font-family: monospace; font-size: 13px; color: rgba(255,255,255,0.4); text-align: right; }
     .clock-date { font-size: 9px; color: rgba(255,255,255,0.2); margin-top: 2px; }
-
-    /* LAYOUT */
     .wrap { max-width: 420px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-
-    /* SCANNER */
-    .scanner-box {
-      position: relative; border-radius: 18px; overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.08); background: #000;
-      aspect-ratio: 1/1;
-    }
+    .scanner-box { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #000; aspect-ratio: 1/1; }
     #video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .scanner-overlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-    }
-    .scan-frame {
-      position: relative; width: 200px; height: 200px;
-    }
-    .scan-frame::before, .scan-frame::after,
-    .scan-frame span::before, .scan-frame span::after {
-      content: ''; position: absolute;
-      width: 28px; height: 28px;
-      border-color: #f5a623; border-style: solid;
-    }
+    .scanner-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .scan-frame { position: relative; width: 200px; height: 200px; }
+    .scan-frame::before, .scan-frame::after, .scan-frame span::before, .scan-frame span::after { content: ''; position: absolute; width: 28px; height: 28px; border-color: #f5a623; border-style: solid; }
     .scan-frame::before  { top: 0; left: 0;     border-width: 2px 0 0 2px; border-radius: 6px 0 0 0; }
     .scan-frame::after   { top: 0; right: 0;    border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
     .scan-frame span::before { bottom: 0; left: 0;  border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
     .scan-frame span::after  { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 6px 0; }
-    .scan-line {
-      position: absolute; left: 6px; right: 6px; height: 2px;
-      background: linear-gradient(90deg, transparent, #f5a623, transparent);
-      border-radius: 99px; animation: scanMove 2s ease-in-out infinite;
-    }
-    @keyframes scanMove {
-      0%   { top: 6px;   opacity: 1; }
-      50%  { top: calc(100% - 6px); opacity: 0.6; }
-      100% { top: 6px;   opacity: 1; }
-    }
-    .scanner-hint {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      padding: 12px; text-align: center;
-      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-      font-size: 11px; color: rgba(255,255,255,0.4);
-    }
-    .scanner-loading {
-      position: absolute; inset: 0; background: rgba(0,0,0,0.75);
-      display: none; align-items: center; justify-content: center;
-      flex-direction: column; gap: 10px; backdrop-filter: blur(4px);
-    }
-    .spinner {
-      width: 36px; height: 36px; border: 2px solid rgba(245,166,35,0.2);
-      border-top-color: #f5a623; border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .scan-line { position: absolute; left: 6px; right: 6px; height: 2px; background: linear-gradient(90deg, transparent, #f5a623, transparent); border-radius: 99px; animation: scanMove 2s ease-in-out infinite; top: 6px; }
+    @keyframes scanMove { 0% { top: 6px; opacity: 1; } 50% { top: calc(100% - 6px); opacity: 0.6; } 100% { top: 6px; opacity: 1; } }
+    .scanner-hint { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; text-align: center; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); font-size: 11px; color: rgba(255,255,255,0.4); }
+    .scanner-loading { position: absolute; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 10px; backdrop-filter: blur(4px); }
+    .spinner { width: 36px; height: 36px; border: 2px solid rgba(245,166,35,0.2); border-top-color: #f5a623; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .scanner-loading p { font-size: 12px; color: rgba(255,255,255,0.5); }
-
-    /* CAM ERROR */
-    .cam-error {
-      position: absolute; inset: 0;
-      display: none; align-items: center; justify-content: center;
-      flex-direction: column; gap: 10px; padding: 24px; text-align: center;
-    }
+    .cam-error { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 10px; padding: 24px; text-align: center; }
     .cam-error .icon { font-size: 40px; opacity: 0.5; }
     .cam-error p { font-size: 12px; color: #f87171; line-height: 1.5; }
-
-    /* RESULT CARD */
-    .result-card {
-      border-radius: 16px; padding: 18px;
-      display: none; animation: fadeUp 0.3s ease both;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    .result-card { border-radius: 16px; padding: 18px; display: none; animation: fadeUp 0.3s ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .result-card.success { background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.3); }
     .result-card.warning { background: rgba(234,179,8,0.10); border: 1px solid rgba(234,179,8,0.25); }
     .result-card.error   { background: rgba(220,38,38,0.10); border: 1px solid rgba(220,38,38,0.25); }
     .result-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .result-icon {
-      width: 40px; height: 40px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
-    }
-    .result-card.success .result-icon { background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.4); }
+    .result-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .result-card.success .result-icon { background: rgba(22,163,74,0.2);  border: 1px solid rgba(22,163,74,0.4); }
     .result-card.warning .result-icon { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.3); }
     .result-card.error   .result-icon { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.3); }
     .result-title { font-size: 13px; font-weight: 700; }
@@ -115,56 +48,29 @@
     .result-card.warning .result-title { color: #fde047; }
     .result-card.error   .result-title { color: #f87171; }
     .result-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
-    .result-rows { display: flex; flex-direction: column; gap: 0; }
-    .result-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
+    .result-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .result-row:last-child { border-bottom: none; }
     .result-label { font-size: 10px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.08em; }
     .result-value { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); text-align: right; }
     .result-value.gold { color: #f5a623; }
-
-    /* ABSENSI LIST */
-    .absensi-box {
-      border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03); overflow: hidden;
-    }
-    .absensi-head {
-      padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
-      display: flex; align-items: center; justify-content: space-between;
-    }
+    .absensi-box { border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden; }
+    .absensi-head { padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
     .absensi-title { font-size: 13px; font-weight: 700; color: #fff; }
     .absensi-count { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
-    .btn-refresh {
-      width: 30px; height: 30px; border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.4); font-size: 14px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.15s;
-    }
+    .btn-refresh { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .btn-refresh:hover { background: rgba(255,255,255,0.1); color: #fff; }
     .absensi-empty { padding: 36px 16px; text-align: center; }
     .absensi-empty .ei { font-size: 32px; opacity: 0.2; margin-bottom: 8px; }
     .absensi-empty p { font-size: 11px; color: rgba(255,255,255,0.2); }
     .absensi-list { max-height: 280px; overflow-y: auto; }
-    .absensi-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
-      animation: fadeUp 0.2s ease both;
-    }
+    .absensi-item { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .absensi-item:last-child { border-bottom: none; }
-    .absensi-ava {
-      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-      background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; color: #f5a623;
-    }
+    .absensi-ava { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #f5a623; }
     .absensi-nama { font-size: 13px; font-weight: 600; color: #fff; }
     .absensi-id   { font-size: 10px; color: rgba(255,255,255,0.25); font-family: monospace; margin-top: 1px; }
     .absensi-jam  { font-size: 11px; color: rgba(255,255,255,0.3); font-family: monospace; flex-shrink: 0; margin-left: auto; }
-
-    /* SCROLLBAR */
+    .status-bar { padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
@@ -184,32 +90,27 @@
 </header>
 
 <div class="wrap">
-
-  <!-- SCANNER -->
   <div class="scanner-box">
     <video id="video" muted playsinline></video>
-
     <div class="scanner-overlay">
-      <div class="scan-frame">
-        <span></span>
-        <div class="scan-line"></div>
-      </div>
+      <div class="scan-frame"><span></span><div class="scan-line"></div></div>
     </div>
-
     <div class="scanner-hint">Arahkan kamera ke QR Code kartu member</div>
-
     <div class="scanner-loading" id="scannerLoading">
       <div class="spinner"></div>
       <p>Memproses...</p>
     </div>
-
     <div class="cam-error" id="camError">
       <div class="icon">📷</div>
       <p id="camErrorMsg">Tidak bisa mengakses kamera.<br>Pastikan izin kamera sudah diberikan.</p>
     </div>
   </div>
 
-  <!-- RESULT -->
+  <div id="statusBar" class="status-bar" style="background:rgba(255,255,255,0.03);border-radius:10px;">
+    <div class="status-dot" id="statusDot" style="background:#888;"></div>
+    <span id="statusText" style="color:rgba(255,255,255,0.3);">Memulai kamera...</span>
+  </div>
+
   <div class="result-card" id="resultCard">
     <div class="result-head">
       <div class="result-icon" id="resultIcon"></div>
@@ -218,87 +119,141 @@
         <div class="result-sub"  id="resultSub"></div>
       </div>
     </div>
-    <div class="result-rows" id="resultRows"></div>
+    <div id="resultRows"></div>
   </div>
 
-  <!-- ABSENSI LIST -->
   <div class="absensi-box">
     <div class="absensi-head">
       <div>
         <div class="absensi-title">Absensi Hari Ini</div>
         <div class="absensi-count" id="absensiCount">0 member hadir</div>
       </div>
-      <button class="btn-refresh" onclick="loadAbsensi()" title="Refresh">↻</button>
+      <button class="btn-refresh" onclick="loadAbsensi()">↻</button>
     </div>
     <div id="absensiContent">
-      <div class="absensi-empty">
-        <div class="ei">👥</div>
-        <p>Belum ada absensi hari ini</p>
-      </div>
+      <div class="absensi-empty"><div class="ei">👥</div><p>Belum ada absensi hari ini</p></div>
     </div>
   </div>
-
 </div>
 
 <script>
   // ================================================================
   // KONFIGURASI — ganti sesuai milikmu
   // ================================================================
-  var GAS_URL     = 'https://script.google.com/macros/s/AKfycbzQL5AufhZdcwzA4UHPQeZbsI9vzvTK14W4KmeJjQSZLgIspN-r_n27bFcAkG5C-y5-IQ/exec';
+  var GAS_URL     = 'https://script.google.com/macros/s/XXXXXX/exec';
   var SCANNER_KEY = 'fixgym-scanner-2025';
 
   // ================================================================
   // STATE
   // ================================================================
-  var isProcessing  = false;
-  var lastScanned   = '';
-  var codeReader    = null;
+  var isProcessing = false;
+  var lastScanned  = '';
+  var rafId        = null;
+  var canvas       = document.createElement('canvas');
+  var ctx          = canvas.getContext('2d');
 
   // ================================================================
   // CLOCK
   // ================================================================
   function tickClock() {
-    var now  = new Date();
-    document.getElementById('clock').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    var now = new Date();
+    document.getElementById('clock').innerText    = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     document.getElementById('clockDate').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   }
   setInterval(tickClock, 1000);
   tickClock();
 
   // ================================================================
-  // SCANNER
+  // STATUS BAR
   // ================================================================
-  var video      = document.getElementById('video');
-var canvasElem = document.createElement('canvas');
-var ctx        = canvasElem.getContext('2d');
-var stream     = null;
+  function setStatus(text, color) {
+    document.getElementById('statusText').innerText   = text;
+    document.getElementById('statusDot').style.background = color || '#888';
+  }
 
-function startScanner() {
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    .then(function(s) {
-      stream        = s;
-      video.srcObject = s;
+  // ================================================================
+  // SCANNER — jsQR via canvas loop
+  // ================================================================
+  var video = document.getElementById('video');
+
+  function startScanner() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      document.getElementById('camError').style.display = 'flex';
+      setStatus('Browser tidak mendukung akses kamera', '#ef4444');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    })
+    .then(function(stream) {
+      video.srcObject = stream;
       video.setAttribute('playsinline', true);
       video.play();
-      requestAnimationFrame(tick);
+      video.addEventListener('loadedmetadata', function() {
+        setStatus('Siap scan — arahkan ke QR Code', '#22c55e');
+        tick();
+      });
     })
-    .catch(function() {
+    .catch(function(err) {
       document.getElementById('camError').style.display = 'flex';
+      setStatus('Akses kamera ditolak', '#ef4444');
     });
-}
-
-function tick() {
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvasElem.height = video.videoHeight;
-    canvasElem.width  = video.videoWidth;
-    ctx.drawImage(video, 0, 0, canvasElem.width, canvasElem.height);
-    var imageData = ctx.getImageData(0, 0, canvasElem.width, canvasElem.height);
-    var code      = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-    if (code && code.data) onScanSuccess(code.data);
   }
-  if (!isProcessing) requestAnimationFrame(tick);
-  else setTimeout(function() { requestAnimationFrame(tick); }, 4500);
-}
+
+  function tick() {
+    if (isProcessing) { rafId = requestAnimationFrame(tick); return; }
+    if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var code      = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data && code.data !== lastScanned) {
+        onScanSuccess(code.data);
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ================================================================
+  // HANDLE SCAN
+  // ================================================================
+  function onScanSuccess(qrText) {
+    if (isProcessing) return;
+    isProcessing = true;
+    lastScanned  = qrText;
+    setStatus('Memproses scan...', '#f5a623');
+    showLoading(true);
+    hideResult();
+
+    fetch(GAS_URL + '?action=scanAbsen&qr=' + encodeURIComponent(qrText) + '&key=' + SCANNER_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        showLoading(false);
+        showResult(data);
+        if (data.success) loadAbsensi();
+        setStatus(data.success ? 'Absensi berhasil!' : (data.message || 'Gagal'), data.success ? '#22c55e' : '#ef4444');
+        setTimeout(function() {
+          hideResult();
+          isProcessing = false;
+          lastScanned  = '';
+          setStatus('Siap scan — arahkan ke QR Code', '#22c55e');
+        }, 4000);
+      })
+      .catch(function() {
+        showLoading(false);
+        showResult({ success: false, message: 'Gagal terhubung ke server.' });
+        setStatus('Gagal terhubung', '#ef4444');
+        setTimeout(function() {
+          hideResult();
+          isProcessing = false;
+          lastScanned  = '';
+          setStatus('Siap scan — arahkan ke QR Code', '#22c55e');
+        }, 4000);
+      });
+  }
 
   // ================================================================
   // UI
@@ -309,6 +264,13 @@ function tick() {
 
   function hideResult() {
     document.getElementById('resultCard').style.display = 'none';
+  }
+
+  function makeRow(label, value, gold) {
+    return '<div class="result-row">' +
+      '<span class="result-label">' + label + '</span>' +
+      '<span class="result-value' + (gold ? ' gold' : '') + '">' + value + '</span>' +
+    '</div>';
   }
 
   function showResult(data) {
@@ -327,22 +289,20 @@ function tick() {
       title.innerText = 'Absensi Berhasil!';
       sub.innerText   = 'Jam masuk: ' + m.jamAbsen;
       rows.innerHTML  =
-        row('Nama',         m.name,     false) +
-        row('ID Member',    m.id,       false) +
-        row('Bergabung',    m.joinDate, false) +
-        row('Aktif hingga', m.expDate + ' <span style="font-size:10px;color:rgba(255,255,255,0.3);">(' + m.sisaHari + ' hari lagi)</span>', true);
+        makeRow('Nama', m.name, false) +
+        makeRow('ID Member', m.id, false) +
+        makeRow('Bergabung', m.joinDate, false) +
+        makeRow('Aktif hingga', m.expDate + ' <span style="font-size:10px;color:rgba(255,255,255,0.3);">(' + m.sisaHari + ' hari lagi)</span>', true);
     } else if (data.alreadyAbsen && data.member) {
-      var m = data.member;
       card.classList.add('warning');
       icon.innerText  = '⚠️';
-      title.innerText = m.name;
-      sub.innerText   = 'Sudah absen hari ini pukul ' + m.jamAbsen;
+      title.innerText = data.member.name;
+      sub.innerText   = 'Sudah absen hari ini pukul ' + data.member.jamAbsen;
     } else if (data.expired && data.member) {
-      var m = data.member;
       card.classList.add('error');
       icon.innerText  = '❌';
-      title.innerText = m.name + ' — Membership Expired';
-      sub.innerText   = 'Expired: ' + m.expDate;
+      title.innerText = data.member.name + ' — Expired';
+      sub.innerText   = 'Membership habis: ' + data.member.expDate;
     } else {
       card.classList.add('error');
       icon.innerText  = '❌';
@@ -350,13 +310,6 @@ function tick() {
       sub.innerText   = '';
     }
     card.style.display = 'block';
-  }
-
-  function row(label, value, isGold) {
-    return '<div class="result-row">' +
-      '<span class="result-label">' + label + '</span>' +
-      '<span class="result-value' + (isGold ? ' gold' : '') + '">' + value + '</span>' +
-    '</div>';
   }
 
   // ================================================================
@@ -367,28 +320,24 @@ function tick() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.success) return;
-        var list    = data.data || [];
-        var content = document.getElementById('absensiContent');
-        var count   = document.getElementById('absensiCount');
+        var list  = data.data || [];
+        var count = document.getElementById('absensiCount');
+        var cont  = document.getElementById('absensiContent');
         count.innerText = list.length + ' member hadir';
         if (!list.length) {
-          content.innerHTML = '<div class="absensi-empty"><div class="ei">👥</div><p>Belum ada absensi hari ini</p></div>';
+          cont.innerHTML = '<div class="absensi-empty"><div class="ei">👥</div><p>Belum ada absensi hari ini</p></div>';
           return;
         }
         var html = '<div class="absensi-list">';
         list.forEach(function(item) {
-          html +=
-            '<div class="absensi-item">' +
-              '<div class="absensi-ava">' + item.nama.charAt(0).toUpperCase() + '</div>' +
-              '<div>' +
-                '<div class="absensi-nama">' + item.nama + '</div>' +
-                '<div class="absensi-id">'   + item.id   + '</div>' +
-              '</div>' +
-              '<div class="absensi-jam">' + item.jam + '</div>' +
-            '</div>';
+          html += '<div class="absensi-item">' +
+            '<div class="absensi-ava">' + item.nama.charAt(0).toUpperCase() + '</div>' +
+            '<div><div class="absensi-nama">' + item.nama + '</div><div class="absensi-id">' + item.id + '</div></div>' +
+            '<div class="absensi-jam">' + item.jam + '</div>' +
+          '</div>';
         });
         html += '</div>';
-        content.innerHTML = html;
+        cont.innerHTML = html;
       })
       .catch(function() {});
   }
