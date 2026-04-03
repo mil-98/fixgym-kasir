@@ -2,607 +2,407 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fix Gym — QR Scanner</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Fix Gym — Scanner Absensi</title>
+  <script src="https://unpkg.com/@zxing/browser@0.1.1/umd/index.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --bg:       #0a0a0a;
-      --bg2:      #111111;
-      --border:   #1e1e1e;
-      --gold:     #f5a623;
-      --gold-dim: rgba(245,166,35,0.12);
-      --green:    #16a34a;
-      --red:      #dc2626;
-      --text:     #f1f5f9;
-      --text2:    #94a3b8;
-      --text3:    #475569;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a; color: #fff; min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Syne', sans-serif;
-      overflow: hidden;
+    /* HEADER */
+    header {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-between;
     }
+    .brand { font-size: 20px; font-weight: 900; letter-spacing: 4px; color: #f5a623; }
+    .brand-sub { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 3px; margin-top: 2px; }
+    .clock { font-family: monospace; font-size: 13px; color: rgba(255,255,255,0.4); text-align: right; }
+    .clock-date { font-size: 9px; color: rgba(255,255,255,0.2); margin-top: 2px; }
 
-    /* ── LAYOUT ── */
-    .wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      padding: 16px;
-      gap: 0;
+    /* LAYOUT */
+    .wrap { max-width: 420px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* SCANNER */
+    .scanner-box {
+      position: relative; border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08); background: #000;
+      aspect-ratio: 1/1;
     }
-
-    /* ── HEADER ── */
-    .header {
-      text-align: center;
-      margin-bottom: 18px;
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .scanner-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
     }
-    .logo {
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: 5px;
-      color: var(--gold);
+    .scan-frame {
+      position: relative; width: 200px; height: 200px;
     }
-    .logo-sub {
-      font-size: 9px;
-      letter-spacing: 3px;
-      color: var(--text3);
-      margin-top: 2px;
+    .scan-frame::before, .scan-frame::after,
+    .scan-frame span::before, .scan-frame span::after {
+      content: ''; position: absolute;
+      width: 28px; height: 28px;
+      border-color: #f5a623; border-style: solid;
     }
-
-    /* ── VIEWFINDER ── */
-    .viewfinder-wrap {
-      position: relative;
-      width: 260px;
-      height: 260px;
-      flex-shrink: 0;
-    }
-
-    video, canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      border-radius: 16px;
-      object-fit: cover;
-    }
-    canvas { display: none; }
-
-    /* Corner brackets */
-    .corner {
-      position: absolute;
-      width: 28px;
-      height: 28px;
-      z-index: 10;
-    }
-    .corner::before, .corner::after {
-      content: '';
-      position: absolute;
-      background: var(--gold);
-      border-radius: 2px;
-    }
-    .corner::before { width: 3px; height: 100%; }
-    .corner::after  { width: 100%; height: 3px; }
-
-    .corner.tl { top: 10px; left: 10px; }
-    .corner.tl::before { top: 0; left: 0; }
-    .corner.tl::after  { top: 0; left: 0; }
-
-    .corner.tr { top: 10px; right: 10px; transform: scaleX(-1); }
-    .corner.tr::before { top: 0; left: 0; }
-    .corner.tr::after  { top: 0; left: 0; }
-
-    .corner.bl { bottom: 10px; left: 10px; transform: scaleY(-1); }
-    .corner.bl::before { top: 0; left: 0; }
-    .corner.bl::after  { top: 0; left: 0; }
-
-    .corner.br { bottom: 10px; right: 10px; transform: scale(-1); }
-    .corner.br::before { top: 0; left: 0; }
-    .corner.br::after  { top: 0; left: 0; }
-
-    /* Scan line */
+    .scan-frame::before  { top: 0; left: 0;     border-width: 2px 0 0 2px; border-radius: 6px 0 0 0; }
+    .scan-frame::after   { top: 0; right: 0;    border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
+    .scan-frame span::before { bottom: 0; left: 0;  border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
+    .scan-frame span::after  { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 6px 0; }
     .scan-line {
-      position: absolute;
-      left: 14px; right: 14px;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      border-radius: 2px;
-      z-index: 10;
-      animation: scan 2s ease-in-out infinite;
-      box-shadow: 0 0 8px var(--gold);
+      position: absolute; left: 6px; right: 6px; height: 2px;
+      background: linear-gradient(90deg, transparent, #f5a623, transparent);
+      border-radius: 99px; animation: scanMove 2s ease-in-out infinite;
     }
-    @keyframes scan {
-      0%   { top: 14px; opacity: 0; }
-      10%  { opacity: 1; }
-      90%  { opacity: 1; }
-      100% { top: calc(100% - 14px); opacity: 0; }
+    @keyframes scanMove {
+      0%   { top: 6px;   opacity: 1; }
+      50%  { top: calc(100% - 6px); opacity: 0.6; }
+      100% { top: 6px;   opacity: 1; }
     }
+    .scanner-hint {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 12px; text-align: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      font-size: 11px; color: rgba(255,255,255,0.4);
+    }
+    .scanner-loading {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.75);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 10px; backdrop-filter: blur(4px);
+    }
+    .spinner {
+      width: 36px; height: 36px; border: 2px solid rgba(245,166,35,0.2);
+      border-top-color: #f5a623; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .scanner-loading p { font-size: 12px; color: rgba(255,255,255,0.5); }
 
-    /* Overlay saat kamera belum aktif */
-    .cam-placeholder {
-      position: absolute;
-      inset: 0;
-      border-radius: 16px;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      z-index: 5;
+    /* CAM ERROR */
+    .cam-error {
+      position: absolute; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 10px; padding: 24px; text-align: center;
     }
-    .cam-placeholder svg {
-      width: 40px; height: 40px;
-      opacity: 0.25;
-    }
-    .cam-placeholder span {
-      font-size: 11px;
-      color: var(--text3);
-      letter-spacing: 1px;
-    }
+    .cam-error .icon { font-size: 40px; opacity: 0.5; }
+    .cam-error p { font-size: 12px; color: #f87171; line-height: 1.5; }
 
-    /* ── STATUS ── */
-    .status {
-      margin-top: 14px;
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      color: var(--text3);
-      text-transform: uppercase;
-      text-align: center;
-      min-height: 16px;
-    }
-    .status.scanning { color: var(--gold); }
-    .status.success  { color: var(--green); }
-    .status.error    { color: var(--red); }
-
-    /* ── RESULT CARD ── */
+    /* RESULT CARD */
     .result-card {
-      display: none;
-      margin-top: 16px;
-      width: 260px;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      animation: slideUp 0.25s ease;
+      border-radius: 16px; padding: 18px;
+      display: none; animation: fadeUp 0.3s ease both;
     }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(12px); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
-    .result-header {
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
+    .result-card.success { background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.3); }
+    .result-card.warning { background: rgba(234,179,8,0.10); border: 1px solid rgba(234,179,8,0.25); }
+    .result-card.error   { background: rgba(220,38,38,0.10); border: 1px solid rgba(220,38,38,0.25); }
+    .result-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .result-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
     }
-    .result-avatar {
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      background: var(--gold-dim);
-      border: 1.5px solid var(--gold);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 800; color: var(--gold);
-      flex-shrink: 0;
-    }
-    .result-name {
-      font-size: 14px; font-weight: 700; color: var(--text);
-      line-height: 1.2;
-    }
-    .result-id {
-      font-family: 'DM Mono', monospace;
-      font-size: 10px; color: var(--text3);
-      margin-top: 2px;
-    }
-
-    .result-status {
-      padding: 6px 16px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .result-status.aktif   { background: rgba(22,163,74,0.08); color: var(--green); }
-    .result-status.expired { background: rgba(220,38,38,0.08);  color: var(--red); }
-
-    .result-body {
-      padding: 10px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    .result-card.success .result-icon { background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.4); }
+    .result-card.warning .result-icon { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.3); }
+    .result-card.error   .result-icon { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.3); }
+    .result-title { font-size: 13px; font-weight: 700; }
+    .result-card.success .result-title { color: #4ade80; }
+    .result-card.warning .result-title { color: #fde047; }
+    .result-card.error   .result-title { color: #f87171; }
+    .result-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+    .result-rows { display: flex; flex-direction: column; gap: 0; }
     .result-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .result-label {
-      font-size: 10px;
-      color: var(--text3);
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .result-value {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: var(--text2);
-      font-weight: 500;
-    }
+    .result-row:last-child { border-bottom: none; }
+    .result-label { font-size: 10px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.08em; }
+    .result-value { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); text-align: right; }
+    .result-value.gold { color: #f5a623; }
 
-    /* ── BUTTONS ── */
-    .result-footer {
-      padding: 10px 16px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    /* ABSENSI LIST */
+    .absensi-box {
+      border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03); overflow: hidden;
     }
+    .absensi-head {
+      padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .absensi-title { font-size: 13px; font-weight: 700; color: #fff; }
+    .absensi-count { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+    .btn-refresh {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.4); font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .absensi-empty { padding: 36px 16px; text-align: center; }
+    .absensi-empty .ei { font-size: 32px; opacity: 0.2; margin-bottom: 8px; }
+    .absensi-empty p { font-size: 11px; color: rgba(255,255,255,0.2); }
+    .absensi-list { max-height: 280px; overflow-y: auto; }
+    .absensi-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      animation: fadeUp 0.2s ease both;
+    }
+    .absensi-item:last-child { border-bottom: none; }
+    .absensi-ava {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #f5a623;
+    }
+    .absensi-nama { font-size: 13px; font-weight: 600; color: #fff; }
+    .absensi-id   { font-size: 10px; color: rgba(255,255,255,0.25); font-family: monospace; margin-top: 1px; }
+    .absensi-jam  { font-size: 11px; color: rgba(255,255,255,0.3); font-family: monospace; flex-shrink: 0; margin-left: auto; }
 
-    .btn-absen {
-      width: 100%;
-      padding: 11px;
-      border: none;
-      border-radius: 10px;
-      background: var(--gold);
-      color: #000;
-      font-family: 'Syne', sans-serif;
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-    }
-    .btn-absen:hover  { opacity: 0.88; }
-    .btn-absen:active { transform: scale(0.98); }
-    .btn-absen:disabled {
-      background: var(--border);
-      color: var(--text3);
-      cursor: not-allowed;
-    }
-
-    .btn-scan-again {
-      width: 100%;
-      padding: 9px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: transparent;
-      color: var(--text2);
-      font-family: 'Syne', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .btn-scan-again:hover { border-color: var(--gold); color: var(--gold); }
-
-    /* ── ALREADY ABSEN ── */
-    .already-absen {
-      display: none;
-      padding: 12px 16px;
-      background: rgba(22,163,74,0.08);
-      border-top: 1px solid var(--border);
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--green);
-      letter-spacing: 0.5px;
-    }
-
-    /* ── START BTN (saat belum mulai) ── */
-    .btn-start {
-      margin-top: 16px;
-      padding: 12px 32px;
-      border: 1.5px solid var(--gold);
-      border-radius: 10px;
-      background: var(--gold-dim);
-      color: var(--gold);
-      font-family: 'Syne', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .btn-start:hover { background: rgba(245,166,35,0.2); }
-
-    /* ── ERROR STATE ── */
-    .error-box {
-      display: none;
-      margin-top: 16px;
-      padding: 14px 16px;
-      width: 260px;
-      background: rgba(220,38,38,0.08);
-      border: 1px solid rgba(220,38,38,0.2);
-      border-radius: 12px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--red);
-      line-height: 1.5;
-    }
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
   </style>
 </head>
 <body>
+
+<header>
+  <div>
+    <div class="brand">FIX GYM</div>
+    <div class="brand-sub">SCANNER ABSENSI</div>
+  </div>
+  <div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="clock-date" id="clockDate"></div>
+  </div>
+</header>
+
 <div class="wrap">
 
-  <div class="header">
-    <div class="logo">FIX GYM</div>
-    <div class="logo-sub">STAFF SCANNER</div>
-  </div>
+  <!-- SCANNER -->
+  <div class="scanner-box">
+    <video id="video" muted playsinline></video>
 
-  <!-- Viewfinder -->
-  <div class="viewfinder-wrap" id="viewfinderWrap">
-    <div class="corner tl"></div>
-    <div class="corner tr"></div>
-    <div class="corner bl"></div>
-    <div class="corner br"></div>
-    <div class="scan-line" id="scanLine" style="display:none;"></div>
-
-    <div class="cam-placeholder" id="camPlaceholder">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3M15 3h3a3 3 0 013 3v3M15 21h3a3 3 0 003-3v-3"/>
-        <rect x="8" y="8" width="8" height="8" rx="1"/>
-      </svg>
-      <span>Tekan mulai scan</span>
+    <div class="scanner-overlay">
+      <div class="scan-frame">
+        <span></span>
+        <div class="scan-line"></div>
+      </div>
     </div>
 
-    <video id="video" playsinline muted></video>
-    <canvas id="canvas"></canvas>
+    <div class="scanner-hint">Arahkan kamera ke QR Code kartu member</div>
+
+    <div class="scanner-loading" id="scannerLoading">
+      <div class="spinner"></div>
+      <p>Memproses...</p>
+    </div>
+
+    <div class="cam-error" id="camError">
+      <div class="icon">📷</div>
+      <p id="camErrorMsg">Tidak bisa mengakses kamera.<br>Pastikan izin kamera sudah diberikan.</p>
+    </div>
   </div>
 
-  <div class="status" id="status">Siap memulai</div>
-
-  <button class="btn-start" id="btnStart" onclick="startScan()">MULAI SCAN</button>
-
-  <!-- Result card -->
+  <!-- RESULT -->
   <div class="result-card" id="resultCard">
-    <div class="result-header">
-      <div class="result-avatar" id="resAvatar">?</div>
+    <div class="result-head">
+      <div class="result-icon" id="resultIcon"></div>
       <div>
-        <div class="result-name" id="resName">—</div>
-        <div class="result-id"   id="resId">—</div>
+        <div class="result-title" id="resultTitle"></div>
+        <div class="result-sub"  id="resultSub"></div>
       </div>
     </div>
-    <div class="result-status" id="resStatus">—</div>
-    <div class="result-body">
-      <div class="result-row">
-        <span class="result-label">Join Date</span>
-        <span class="result-value" id="resJoin">—</span>
-      </div>
-      <div class="result-row">
-        <span class="result-label">Expired</span>
-        <span class="result-value" id="resExp">—</span>
-      </div>
-    </div>
-    <div class="already-absen" id="alreadyAbsen">✓ Sudah absen hari ini</div>
-    <div class="result-footer">
-      <button class="btn-absen" id="btnAbsen" onclick="doAbsen()">ABSENSI</button>
-      <button class="btn-scan-again" onclick="scanAgain()">Scan Lagi</button>
-    </div>
+    <div class="result-rows" id="resultRows"></div>
   </div>
 
-  <div class="error-box" id="errorBox"></div>
+  <!-- ABSENSI LIST -->
+  <div class="absensi-box">
+    <div class="absensi-head">
+      <div>
+        <div class="absensi-title">Absensi Hari Ini</div>
+        <div class="absensi-count" id="absensiCount">0 member hadir</div>
+      </div>
+      <button class="btn-refresh" onclick="loadAbsensi()" title="Refresh">↻</button>
+    </div>
+    <div id="absensiContent">
+      <div class="absensi-empty">
+        <div class="ei">👥</div>
+        <p>Belum ada absensi hari ini</p>
+      </div>
+    </div>
+  </div>
 
 </div>
 
 <script>
-  // ── CONFIG ──
-  // Ganti dengan URL GAS Web App kamu
-  var GAS_URL = 'https://script.google.com/macros/s/AKfycbzadQijf8NcbMJJZ9B3h7dYgKz1zd8rSffsuYDifWHgqK8xIN2CYxbGzaywLD58xhXjQA/exec';
+  // ================================================================
+  // KONFIGURASI — ganti sesuai milikmu
+  // ================================================================
+  var GAS_URL     = 'https://script.google.com/macros/s/AKfycbzQL5AufhZdcwzA4UHPQeZbsI9vzvTK14W4KmeJjQSZLgIspN-r_n27bFcAkG5C-y5-IQ/exec';
+  var SCANNER_KEY = 'fixgym-scanner-2025';
 
-  var video      = document.getElementById('video');
-  var canvas     = document.getElementById('canvas');
-  var ctx        = canvas.getContext('2d');
-  var scanning   = false;
-  var stream     = null;
-  var animFrame  = null;
-  var currentMember = null;
+  // ================================================================
+  // STATE
+  // ================================================================
+  var isProcessing  = false;
+  var lastScanned   = '';
+  var codeReader    = null;
 
-  // ── TERIMA sessionToken dari parent (GAS app) ──
-  var sessionToken = null;
-  window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'SET_TOKEN') {
-      sessionToken = e.data.token;
-    }
-  });
-  // Minta token saat halaman siap
-  window.parent.postMessage({ type: 'REQUEST_TOKEN' }, '*');
+  // ================================================================
+  // CLOCK
+  // ================================================================
+  function tickClock() {
+    var now  = new Date();
+    document.getElementById('clock').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('clockDate').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
 
-  // ── START SCAN ──
-  function startScan() {
-    document.getElementById('btnStart').style.display = 'none';
-    document.getElementById('errorBox').style.display = 'none';
-    document.getElementById('resultCard').style.display = 'none';
+  // ================================================================
+  // SCANNER
+  // ================================================================
+  function startScanner() {
+    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+    codeReader.decodeFromVideoDevice(undefined, 'video', function(result, err) {
+      if (result) onScanSuccess(result.getText());
+    }).catch(function(err) {
+      document.getElementById('camError').style.display    = 'flex';
+    });
+  }
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      .then(function(s) {
-        stream = s;
-        video.srcObject = s;
-        video.play();
-        document.getElementById('camPlaceholder').style.display = 'none';
-        document.getElementById('scanLine').style.display = 'block';
-        setStatus('Scanning...', 'scanning');
-        scanning = true;
-        requestAnimationFrame(tick);
+  function onScanSuccess(qrText) {
+    if (isProcessing || qrText === lastScanned) return;
+    isProcessing  = true;
+    lastScanned   = qrText;
+    showLoading(true);
+    hideResult();
+    fetch(GAS_URL + '?action=scanAbsen&qr=' + encodeURIComponent(qrText) + '&key=' + SCANNER_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        showLoading(false);
+        showResult(data);
+        if (data.success) loadAbsensi();
+        setTimeout(function() {
+          hideResult();
+          isProcessing = false;
+          lastScanned  = '';
+        }, 4000);
       })
-      .catch(function(err) {
-        showError('Kamera tidak bisa diakses.<br>Pastikan izin kamera sudah diberikan.');
-        document.getElementById('btnStart').style.display = 'block';
+      .catch(function() {
+        showLoading(false);
+        showResult({ success: false, message: 'Gagal terhubung ke server. Cek koneksi internet.' });
+        setTimeout(function() { hideResult(); isProcessing = false; lastScanned = ''; }, 4000);
       });
   }
 
-  // ── SCAN LOOP ──
-  function tick() {
-    if (!scanning) return;
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      var code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
-      });
-      if (code) {
-        onQRFound(code.data);
-        return;
-      }
-    }
-    animFrame = requestAnimationFrame(tick);
+  // ================================================================
+  // UI
+  // ================================================================
+  function showLoading(show) {
+    document.getElementById('scannerLoading').style.display = show ? 'flex' : 'none';
   }
 
-  // ── QR DITEMUKAN ──
-  function onQRFound(raw) {
-    scanning = false;
-    stopCamera();
-
-    // Format QR: FIXGYM|ID|Nama|JoinDate|ExpDate|token
-    var parts = raw.split('|');
-    if (parts.length < 6 || parts[0] !== 'FIXGYM') {
-      showError('QR Code tidak valid.<br>Bukan kartu member Fix Gym.');
-      showScanAgain();
-      return;
-    }
-
-    currentMember = {
-      id:    parts[1],
-      name:  parts[2],
-      join:  parts[3],
-      exp:   parts[4],
-      token: parts[5]
-    };
-
-    // Cek status expired
-    var expDate = new Date(currentMember.exp.split('/').reverse().join('-'));
-    var today   = new Date(); today.setHours(0,0,0,0);
-    var isAktif = expDate >= today;
-
-    // Render card
-    document.getElementById('resAvatar').innerText = currentMember.name.charAt(0).toUpperCase();
-    document.getElementById('resName').innerText   = currentMember.name;
-    document.getElementById('resId').innerText     = currentMember.id;
-    document.getElementById('resJoin').innerText   = currentMember.join;
-    document.getElementById('resExp').innerText    = currentMember.exp;
-
-    var statusEl = document.getElementById('resStatus');
-    if (isAktif) {
-      statusEl.innerText   = '● Membership Active';
-      statusEl.className   = 'result-status aktif';
-    } else {
-      statusEl.innerText   = '● Membership Expired';
-      statusEl.className   = 'result-status expired';
-    }
-
-    var btnAbsen = document.getElementById('btnAbsen');
-    btnAbsen.disabled    = !isAktif;
-    btnAbsen.innerText   = isAktif ? 'ABSENSI' : 'MEMBERSHIP EXPIRED';
-    document.getElementById('alreadyAbsen').style.display = 'none';
-
-    document.getElementById('resultCard').style.display = 'block';
-    setStatus('Member ditemukan', 'success');
-
-    // Kirim data ke parent (GAS) juga via postMessage
-    window.parent.postMessage({
-      type:   'QR_FOUND',
-      member: currentMember,
-      aktif:  isAktif
-    }, '*');
-  }
-
-  // ── ABSENSI ──
-  function doAbsen() {
-    if (!currentMember) return;
-    var btn = document.getElementById('btnAbsen');
-    btn.disabled   = true;
-    btn.innerText  = 'Memproses...';
-
-    // Kirim ke parent untuk diproses via GAS (pakai sessionToken)
-    window.parent.postMessage({
-      type:  'DO_ABSEN',
-      token: currentMember.token,
-      id:    currentMember.id,
-      name:  currentMember.name
-    }, '*');
-  }
-
-  // ── TERIMA HASIL ABSENSI DARI PARENT ──
-  window.addEventListener('message', function(e) {
-    if (!e.data) return;
-    if (e.data.type === 'ABSEN_RESULT') {
-      var btn = document.getElementById('btnAbsen');
-      if (e.data.success) {
-        btn.style.background = '#16a34a';
-        btn.style.color      = '#fff';
-        btn.innerText        = '✓ Absensi Berhasil!';
-        setStatus('Absensi berhasil!', 'success');
-      } else if (e.data.alreadyAbsen) {
-        btn.style.display = 'none';
-        document.getElementById('alreadyAbsen').style.display = 'block';
-        setStatus('Sudah absen hari ini', 'error');
-      } else {
-        btn.disabled  = false;
-        btn.innerText = 'ABSENSI';
-        setStatus(e.data.message || 'Gagal absensi', 'error');
-      }
-    }
-  });
-
-  // ── SCAN LAGI ──
-  function scanAgain() {
-    currentMember = null;
-    document.getElementById('resultCard').style.display  = 'none';
-    document.getElementById('errorBox').style.display    = 'none';
-    document.getElementById('camPlaceholder').style.display = 'flex';
-
-    // Reset btn absen
-    var btn = document.getElementById('btnAbsen');
-    btn.disabled         = false;
-    btn.innerText        = 'ABSENSI';
-    btn.style.background = '';
-    btn.style.color      = '';
-
-    document.getElementById('btnStart').style.display = 'block';
-    setStatus('Siap memulai', '');
-  }
-
-  function showScanAgain() {
+  function hideResult() {
     document.getElementById('resultCard').style.display = 'none';
-    document.getElementById('btnStart').style.display   = 'block';
-    setStatus('Siap memulai', '');
   }
 
-  // ── HELPERS ──
-  function stopCamera() {
-    scanning = false;
-    if (animFrame) cancelAnimationFrame(animFrame);
-    if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
-    document.getElementById('scanLine').style.display = 'none';
-    document.getElementById('camPlaceholder').style.display = 'flex';
+  function showResult(data) {
+    var card  = document.getElementById('resultCard');
+    var icon  = document.getElementById('resultIcon');
+    var title = document.getElementById('resultTitle');
+    var sub   = document.getElementById('resultSub');
+    var rows  = document.getElementById('resultRows');
+    card.className = 'result-card';
+    rows.innerHTML = '';
+
+    if (data.success && data.member) {
+      var m = data.member;
+      card.classList.add('success');
+      icon.innerText  = '✅';
+      title.innerText = 'Absensi Berhasil!';
+      sub.innerText   = 'Jam masuk: ' + m.jamAbsen;
+      rows.innerHTML  =
+        row('Nama',         m.name,     false) +
+        row('ID Member',    m.id,       false) +
+        row('Bergabung',    m.joinDate, false) +
+        row('Aktif hingga', m.expDate + ' <span style="font-size:10px;color:rgba(255,255,255,0.3);">(' + m.sisaHari + ' hari lagi)</span>', true);
+    } else if (data.alreadyAbsen && data.member) {
+      var m = data.member;
+      card.classList.add('warning');
+      icon.innerText  = '⚠️';
+      title.innerText = m.name;
+      sub.innerText   = 'Sudah absen hari ini pukul ' + m.jamAbsen;
+    } else if (data.expired && data.member) {
+      var m = data.member;
+      card.classList.add('error');
+      icon.innerText  = '❌';
+      title.innerText = m.name + ' — Membership Expired';
+      sub.innerText   = 'Expired: ' + m.expDate;
+    } else {
+      card.classList.add('error');
+      icon.innerText  = '❌';
+      title.innerText = data.message || 'Terjadi kesalahan';
+      sub.innerText   = '';
+    }
+    card.style.display = 'block';
   }
 
-  function setStatus(msg, type) {
-    var el = document.getElementById('status');
-    el.innerText  = msg;
-    el.className  = 'status ' + (type || '');
+  function row(label, value, isGold) {
+    return '<div class="result-row">' +
+      '<span class="result-label">' + label + '</span>' +
+      '<span class="result-value' + (isGold ? ' gold' : '') + '">' + value + '</span>' +
+    '</div>';
   }
 
-  function showError(msg) {
-    var el = document.getElementById('errorBox');
-    el.innerHTML = msg;
-    el.style.display = 'block';
-    setStatus('Gagal', 'error');
+  // ================================================================
+  // ABSENSI LIST
+  // ================================================================
+  function loadAbsensi() {
+    fetch(GAS_URL + '?action=absensiHariIni&key=' + SCANNER_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) return;
+        var list    = data.data || [];
+        var content = document.getElementById('absensiContent');
+        var count   = document.getElementById('absensiCount');
+        count.innerText = list.length + ' member hadir';
+        if (!list.length) {
+          content.innerHTML = '<div class="absensi-empty"><div class="ei">👥</div><p>Belum ada absensi hari ini</p></div>';
+          return;
+        }
+        var html = '<div class="absensi-list">';
+        list.forEach(function(item) {
+          html +=
+            '<div class="absensi-item">' +
+              '<div class="absensi-ava">' + item.nama.charAt(0).toUpperCase() + '</div>' +
+              '<div>' +
+                '<div class="absensi-nama">' + item.nama + '</div>' +
+                '<div class="absensi-id">'   + item.id   + '</div>' +
+              '</div>' +
+              '<div class="absensi-jam">' + item.jam + '</div>' +
+            '</div>';
+        });
+        html += '</div>';
+        content.innerHTML = html;
+      })
+      .catch(function() {});
   }
+
+  // ================================================================
+  // START
+  // ================================================================
+  window.onload = function() {
+    startScanner();
+    loadAbsensi();
+  };
 </script>
 </body>
 </html>
+```
